@@ -1,0 +1,29 @@
+# Virtual Environment
+.venv/
+env/
+venv/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.spec
+
+# Build & Dist artifacts
+build/
+dist/
+
+# System / IDE
+.vscode/
+.idea/
+.DS_Store
+*.tmp
+*.log
+
+# Large backup archives (keep DB snapshots, ignore large zips)
+backups/*.zip
+
+# Temporary text dumps
+*_dump.txt
+*_raw.txt
