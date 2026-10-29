@@ -1,8 +1,9 @@
+import os
 import sqlite3
 import pandas as pd
 from datetime import datetime
 
-DB_NAME = "financas.db"
+DB_NAME = os.path.join(os.path.dirname(os.path.abspath(__file__)), "financas.db")
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -85,16 +86,38 @@ def init_db():
     conn.commit()
     conn.close()
 
-def registrar_historico_patrimonio(total):
+from datetime import date
+
+def registrar_historico_patrimonio(total, data_registro=None):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    hoje = datetime.now().strftime("%Y-%m-%d")
-    cursor.execute("SELECT id FROM historico_patrimonio WHERE data_registro = ?", (hoje,))
-    row = cursor.fetchone()
-    if row:
-        cursor.execute("UPDATE historico_patrimonio SET total = ? WHERE id = ?", (total, row[0]))
+    
+    # Normalizar rigorosamente para o 1º dia do mês (AAAA-MM-01)
+    if data_registro is None:
+        hoje = datetime.now()
+        data_mes = f"{hoje.year:04d}-{hoje.month:02d}-01"
+    elif isinstance(data_registro, (date, datetime)):
+        data_mes = f"{data_registro.year:04d}-{data_registro.month:02d}-01"
     else:
-        cursor.execute("INSERT INTO historico_patrimonio (data_registro, total) VALUES (?, ?)", (hoje, total))
+        try:
+            dt = pd.to_datetime(data_registro)
+            data_mes = f"{dt.year:04d}-{dt.month:02d}-01"
+        except Exception:
+            hoje = datetime.now()
+            data_mes = f"{hoje.year:04d}-{hoje.month:02d}-01"
+
+    mes_ano = data_mes[:7] # 'AAAA-MM'
+    cursor.execute("SELECT id FROM historico_patrimonio WHERE data_registro LIKE ? OR data_registro = ?", (f"{mes_ano}%", data_mes))
+    rows = cursor.fetchall()
+    if rows:
+        primeiro_id = rows[0][0]
+        cursor.execute("UPDATE historico_patrimonio SET data_registro = ?, total = ? WHERE id = ?", (data_mes, float(total), primeiro_id))
+        if len(rows) > 1:
+            outros_ids = [r[0] for r in rows[1:]]
+            cursor.execute(f"DELETE FROM historico_patrimonio WHERE id IN ({','.join(['?']*len(outros_ids))})", outros_ids)
+    else:
+        cursor.execute("INSERT INTO historico_patrimonio (data_registro, total) VALUES (?, ?)", (data_mes, float(total)))
+        
     conn.commit()
     conn.close()
 
@@ -102,7 +125,20 @@ def listar_historico_patrimonio():
     conn = sqlite3.connect(DB_NAME)
     df = pd.read_sql_query("SELECT * FROM historico_patrimonio ORDER BY data_registro ASC", conn)
     conn.close()
+    if not df.empty:
+        # Garante que cada mês tem exatamente um registro consolidado (AAAA-MM-01)
+        df['competencia_mes'] = pd.to_datetime(df['data_registro']).dt.strftime('%Y-%m-01')
+        df = df.groupby('competencia_mes', as_index=False).agg({'id': 'last', 'total': 'last'})
+        df['data_registro'] = df['competencia_mes']
+        df = df.sort_values('data_registro').reset_index(drop=True)
     return df
+
+def excluir_historico_patrimonio(id_hist):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM historico_patrimonio WHERE id = ?", (id_hist,))
+    conn.commit()
+    conn.close()
 
 def inserir_lancamento(tipo, descricao, valor, data_vencimento, categoria_503020, banco, status, protocolo=None, data_pagamento=None, tributavel=0, dedutivel=0):
     conn = sqlite3.connect(DB_NAME)
