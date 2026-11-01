@@ -3,7 +3,7 @@ import hashlib
 import os
 from datetime import datetime
 
-DB_NAME = "financas.db"
+DB_NAME = "financas_comercial.db"
 
 def _gerar_hash(senha, salt=None):
     if salt is None:
@@ -18,77 +18,107 @@ def init_auth_db():
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             usuario TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE,
             nome TEXT NOT NULL,
             senha_hash TEXT NOT NULL,
             salt TEXT NOT NULL,
+            plano TEXT DEFAULT 'Gratuito',
             criado_em TEXT
         )
     ''')
     
-    # Se não houver nenhum usuário, cria o usuário master da Emanuela Freires
+    # Criar um usuário demo padrão caso a tabela esteja vazia
     c.execute("SELECT COUNT(*) FROM usuarios")
     if c.fetchone()[0] == 0:
-        senha_hash, salt = _gerar_hash("conty2026")
+        senha_hash, salt = _gerar_hash("123456")
         agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         c.execute('''
-            INSERT INTO usuarios (usuario, nome, senha_hash, salt, criado_em)
-            VALUES (?, ?, ?, ?, ?)
-        ''', ("emanuela", "Emanuela Freires", senha_hash, salt, agora))
+            INSERT INTO usuarios (usuario, email, nome, senha_hash, salt, plano, criado_em)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', ("demo", "demo@economyconty.com", "Usuário Demonstração", senha_hash, salt, "Premium", agora))
         
     conn.commit()
     conn.close()
 
-def cadastrar_usuario(usuario, nome, senha):
+def cadastrar_usuario(usuario, nome, email, senha):
     init_auth_db()
+    usuario = usuario.strip().lower()
+    email = email.strip().lower() if email else None
+    nome = nome.strip()
+    
+    if len(usuario) < 3:
+        return False, "O nome de usuário deve ter pelo menos 3 caracteres.", None
+    if len(senha) < 6:
+        return False, "A senha deve ter pelo menos 6 caracteres.", None
+        
     senha_hash, salt = _gerar_hash(senha)
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     agora = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    sucesso = False
+    
     try:
         c.execute('''
-            INSERT INTO usuarios (usuario, nome, senha_hash, salt, criado_em)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (usuario.strip().lower(), nome.strip(), senha_hash, salt, agora))
+            INSERT INTO usuarios (usuario, email, nome, senha_hash, salt, plano, criado_em)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (usuario, email, nome, senha_hash, salt, "Gratuito", agora))
+        user_id = c.lastrowid
         conn.commit()
-        sucesso = True
-    except sqlite3.IntegrityError:
-        sucesso = False
+        return True, "Cadastro realizado com sucesso! Faça login para continuar.", user_id
+    except sqlite3.IntegrityError as e:
+        erro_str = str(e).lower()
+        if "email" in erro_str:
+            return False, "Este e-mail já está cadastrado.", None
+        return False, "Este nome de usuário já está em uso.", None
     finally:
         conn.close()
-    return sucesso
 
-def verificar_credenciais(usuario, senha):
+def verificar_credenciais(identificador, senha):
     init_auth_db()
+    identificador = identificador.strip().lower()
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT nome, senha_hash, salt FROM usuarios WHERE usuario = ?", (usuario.strip().lower(),))
+    c.execute('''
+        SELECT id, usuario, nome, senha_hash, salt, plano 
+        FROM usuarios 
+        WHERE usuario = ? OR email = ?
+    ''', (identificador, identificador))
     row = c.fetchone()
     conn.close()
     
     if not row:
-        return False, None
+        return False, None, None, None
         
-    nome, senha_hash_salva, salt = row
+    user_id, usuario, nome, senha_hash_salva, salt, plano = row
     senha_hash_calc, _ = _gerar_hash(senha, salt)
     
     if senha_hash_calc == senha_hash_salva:
-        return True, nome
-    return False, None
+        return True, user_id, nome, plano
+    return False, None, None, None
 
-def alterar_senha(usuario, senha_atual, nova_senha):
+def alterar_senha(user_id, senha_atual, nova_senha):
     init_auth_db()
-    autenticado, nome = verificar_credenciais(usuario, senha_atual)
-    if not autenticado:
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT senha_hash, salt FROM usuarios WHERE id = ?", (user_id,))
+    row = c.fetchone()
+    
+    if not row:
+        conn.close()
+        return False, "Usuário não encontrado."
+        
+    senha_hash_salva, salt = row
+    senha_hash_calc, _ = _gerar_hash(senha_atual, salt)
+    
+    if senha_hash_calc != senha_hash_salva:
+        conn.close()
         return False, "Senha atual incorreta."
         
     if len(nova_senha) < 6:
+        conn.close()
         return False, "A nova senha deve ter no mínimo 6 caracteres."
         
-    senha_hash, salt = _gerar_hash(nova_senha)
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("UPDATE usuarios SET senha_hash = ?, salt = ? WHERE usuario = ?", (senha_hash, salt, usuario.strip().lower()))
+    novo_hash, novo_salt = _gerar_hash(nova_senha)
+    c.execute("UPDATE usuarios SET senha_hash = ?, salt = ? WHERE id = ?", (novo_hash, novo_salt, user_id))
     conn.commit()
     conn.close()
     return True, "Senha alterada com sucesso!"

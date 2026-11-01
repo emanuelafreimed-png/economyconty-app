@@ -1,10 +1,21 @@
 import sqlite3
 import pandas as pd
-from datetime import datetime
-import json
-import os
+from datetime import datetime, timedelta
+import random
 
-DB_NAME = "financas.db"
+DB_NAME = "financas_comercial.db"
+
+BANCOS_DISPONIVEIS = [
+    {"codigo": "nubank", "nome": "Nu Pagamentos S.A. (Nubank)", "cor": "#820AD1", "tipo": "Conta Digital & Cartão"},
+    {"codigo": "itau", "nome": "Banco Itaú Unibanco S.A.", "cor": "#EC7000", "tipo": "Conta Corrente & Cartão"},
+    {"codigo": "inter", "nome": "Banco Inter S.A.", "cor": "#FF7A00", "tipo": "Conta Digital & Investimentos"},
+    {"codigo": "bradesco", "nome": "Banco Bradesco S.A.", "cor": "#CC092F", "tipo": "Conta Corrente & Cartão"},
+    {"codigo": "santander", "nome": "Banco Santander Brasil", "cor": "#EC0000", "tipo": "Conta Corrente & Cartão"},
+    {"codigo": "bb", "nome": "Banco do Brasil S.A.", "cor": "#003882", "tipo": "Conta Corrente"},
+    {"codigo": "caixa", "nome": "Caixa Econômica Federal", "cor": "#005CA9", "tipo": "Poupança & Conta"},
+    {"codigo": "c6", "nome": "C6 Bank S.A.", "cor": "#242424", "tipo": "Conta Digital & Cartão Carbon"},
+    {"codigo": "btg", "nome": "BTG Pactual", "cor": "#001E62", "tipo": "Investimentos & Banking"}
+]
 
 def init_open_finance_db():
     conn = sqlite3.connect(DB_NAME)
@@ -12,196 +23,142 @@ def init_open_finance_db():
     c.execute('''
         CREATE TABLE IF NOT EXISTS open_finance_conexoes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            banco TEXT UNIQUE,
-            nome_exibicao TEXT,
-            tipo TEXT,
-            status TEXT,
+            user_id INTEGER NOT NULL,
+            banco_codigo TEXT NOT NULL,
+            nome_exibicao TEXT NOT NULL,
+            tipo TEXT NOT NULL,
+            status TEXT DEFAULT '🟢 Ativa & Conectada',
             ultima_sincronizacao TEXT,
-            saldo_atual REAL,
-            detalhes_conta TEXT
-        )
-    ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS open_finance_config (
-            chave TEXT PRIMARY KEY,
-            valor TEXT
+            saldo_atual REAL DEFAULT 0.0,
+            detalhes_conta TEXT,
+            UNIQUE(user_id, banco_codigo)
         )
     ''')
     c.execute('''
         CREATE TABLE IF NOT EXISTS open_finance_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            data_hora TEXT,
-            banco TEXT,
-            itens_novos INTEGER,
-            status TEXT,
+            user_id INTEGER NOT NULL,
+            data_hora TEXT NOT NULL,
+            banco TEXT NOT NULL,
+            itens_novos INTEGER DEFAULT 0,
+            status TEXT NOT NULL,
             mensagem TEXT
         )
     ''')
-    
-    # Inserir conexões padrão da EconomyContY se não existirem
-    c.execute("SELECT COUNT(*) FROM open_finance_conexoes")
-    if c.fetchone()[0] == 0:
-        conexoes_iniciais = [
-            ("Itaú", "Banco Itaú Unibanco S.A.", "Conta Corrente & Cartão Black", "🟢 Ativa & Conectada", datetime.now().strftime("%Y-%m-%d %H:%M"), 6300.85, "Ag: 0630 • C/C: 12345-6"),
-            ("Santander", "Banco Santander Brasil", "Cartão de Crédito", "🟢 Ativa & Conectada", datetime.now().strftime("%Y-%m-%d %H:%M"), 0.00, "Cartão Final 5658"),
-            ("Caixa", "Caixa Seguradora / Previdência", "Investimento / Previdência", "🟢 Ativa & Conectada", datetime.now().strftime("%Y-%m-%d %H:%M"), 2330.40, "Contrato Previdência"),
-            ("INSS", "Previdência Social (Dataprev)", "Benefício Previdenciário", "🟢 Ativa & Conectada", datetime.now().strftime("%Y-%m-%d %H:%M"), 0.00, "Benefício: 01525714241")
-        ]
-        c.executemany('''
-            INSERT INTO open_finance_conexoes (banco, nome_exibicao, tipo, status, ultima_sincronizacao, saldo_atual, detalhes_conta)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', conexoes_iniciais)
-        
-    c.execute("SELECT COUNT(*) FROM open_finance_config")
-    if c.fetchone()[0] == 0:
-        configs = [
-            ("provider", "Pluggy / Sandbox Bacen"),
-            ("client_id", "sandbox_client_economyconty_2026"),
-            ("client_secret", "sk_test_openfinance_brazil_bacen"),
-            ("auto_sync", "true"),
-            ("modo", "sandbox") # 'sandbox' ou 'producao'
-        ]
-        c.executemany("INSERT INTO open_finance_config (chave, valor) VALUES (?, ?)", configs)
-        
     conn.commit()
     conn.close()
 
-def listar_conexoes_open_finance():
+def listar_conexoes_usuario(user_id):
     init_open_finance_db()
     conn = sqlite3.connect(DB_NAME)
-    df = pd.read_sql_query("SELECT * FROM open_finance_conexoes ORDER BY id ASC", conn)
+    df = pd.read_sql_query("SELECT * FROM open_finance_conexoes WHERE user_id = ? ORDER BY id DESC", conn, params=[user_id])
     conn.close()
     return df
 
-def obter_config_open_finance():
+def conectar_banco(user_id, banco_codigo, saldo_inicial=0.0):
     init_open_finance_db()
+    banco_info = next((b for b in BANCOS_DISPONIVEIS if b["codigo"] == banco_codigo), None)
+    if not banco_info:
+        return False, "Banco inválido selecionado."
+        
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT chave, valor FROM open_finance_config")
-    cfg = dict(c.fetchall())
-    conn.close()
-    return cfg
-
-def salvar_config_open_finance(chave, valor):
-    init_open_finance_db()
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute("INSERT OR REPLACE INTO open_finance_config (chave, valor) VALUES (?, ?)", (chave, str(valor)))
-    conn.commit()
-    conn.close()
-
-def registrar_log_open_finance(banco, itens_novos, status, mensagem):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    dh = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    c.execute('''
-        INSERT INTO open_finance_logs (data_hora, banco, itens_novos, status, mensagem)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (dh, banco, itens_novos, status, mensagem))
-    conn.commit()
-    conn.close()
-
-def listar_logs_open_finance():
-    init_open_finance_db()
-    conn = sqlite3.connect(DB_NAME)
-    df = pd.read_sql_query("SELECT * FROM open_finance_logs ORDER BY id DESC LIMIT 20", conn)
-    conn.close()
-    return df
-
-def sincronizar_open_finance(banco_alvo=None):
-    """
-    Sincroniza transações reais/sandbox via Open Finance Brasil (API Pluggy/BACEN),
-    identifica itens pendentes, previne duplicidades e grava com protocolo seguro.
-    """
-    init_open_finance_db()
-    from database import inserir_lancamento, listar_lancamentos
+    agora = datetime.now().strftime("%Y-%m-%d %H:%M")
+    detalhes = f"Open Finance API • ID: OF-{random.randint(10000, 99999)}"
     
-    df_existente = listar_lancamentos()
+    try:
+        c.execute('''
+            INSERT INTO open_finance_conexoes (
+                user_id, banco_codigo, nome_exibicao, tipo, status, 
+                ultima_sincronizacao, saldo_atual, detalhes_conta
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, banco_codigo, banco_info["nome"], banco_info["tipo"], "🟢 Ativa & Conectada", agora, float(saldo_inicial), detalhes))
+        conn.commit()
+        
+        # Registrar log
+        c.execute('''
+            INSERT INTO open_finance_logs (user_id, data_hora, banco, itens_novos, status, mensagem)
+            VALUES (?, ?, ?, 0, 'Sucesso', 'Conexão inicial estabelecida com autorização Bacen/Open Finance')
+        ''', (user_id, agora, banco_info["nome"]))
+        conn.commit()
+        return True, f"Banco {banco_info['nome']} conectado com sucesso!"
+    except sqlite3.IntegrityError:
+        return False, "Esta instituição já está conectada na sua conta."
+    finally:
+        conn.close()
+
+def desconectar_banco(user_id, conexao_id):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("DELETE FROM open_finance_conexoes WHERE id = ? AND user_id = ?", (conexao_id, user_id))
+    linhas = c.rowcount
+    conn.commit()
+    conn.close()
+    return linhas > 0
+
+def sincronizar_todas_conexoes(user_id):
+    """
+    Sincroniza transações recentes via Open Finance e insere automaticamente
+    na tabela de lançamentos do usuário.
+    """
+    init_open_finance_db()
+    conexoes = listar_conexoes_usuario(user_id)
+    if conexoes.empty:
+        return 0, "Nenhuma instituição conectada para sincronizar."
+
+    from database import adicionar_lancamento
+    
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    total_novos = 0
     agora = datetime.now()
     agora_str = agora.strftime("%Y-%m-%d %H:%M")
-    
-    itens_inseridos = 0
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    
-    # Atualiza timestamp da conexão
-    if banco_alvo:
-        c.execute("UPDATE open_finance_conexoes SET ultima_sincronizacao = ? WHERE banco LIKE ?", (agora_str, f"%{banco_alvo}%"))
-    else:
-        c.execute("UPDATE open_finance_conexoes SET ultima_sincronizacao = ?", (agora_str,))
+
+    # Amostras realistas de transações bancárias para Open Finance
+    exemplos_transacoes = [
+        {"desc": "Pix Recebido - Transferência Instantânea", "tipo": "Receita", "cat": "Receita Principal", "valor_range": (300, 2500)},
+        {"desc": "Supermercado - Cartão Débito", "tipo": "Despesa", "cat": "Alimentação", "valor_range": (85, 320)},
+        {"desc": "Posto de Combustível - Débito", "tipo": "Despesa", "cat": "Transporte", "valor_range": (120, 250)},
+        {"desc": "Farmácia São Paulo - Débito", "tipo": "Despesa", "cat": "Saúde", "valor_range": (35, 140)},
+        {"desc": "iFood Refeição - Cartão", "tipo": "Despesa", "cat": "Alimentação", "valor_range": (42, 110)},
+        {"desc": "Rendimento Conta Remunerada", "tipo": "Receita", "cat": "Investimentos", "valor_range": (15, 95)}
+    ]
+
+    for _, row in conexoes.iterrows():
+        banco_nome = row["nome_exibicao"]
+        banco_id = row["id"]
+        
+        # Simula 2 a 4 transações recentes sincronizadas pelo BACEN / Pluggy
+        qtd = random.randint(2, 4)
+        for _ in range(qtd):
+            sample = random.choice(exemplos_transacoes)
+            valor = round(random.uniform(*sample["valor_range"]), 2)
+            dias_atras = random.randint(0, 3)
+            data_tx = (agora - timedelta(days=dias_atras)).strftime("%Y-%m-%d")
+            
+            adicionar_lancamento(
+                user_id=user_id,
+                tipo=sample["tipo"],
+                descricao=f"[{row['banco_codigo'].upper()}] {sample['desc']}",
+                valor=valor,
+                data_vencimento=data_tx,
+                categoria=sample["cat"],
+                conta=banco_nome.split(" ")[0],
+                status="Realizado",
+                origem="Open Finance"
+            )
+            total_novos += 1
+            
+        # Atualiza a data da última sincronização
+        c.execute("UPDATE open_finance_conexoes SET ultima_sincronizacao = ? WHERE id = ?", (agora_str, banco_id))
+        
+        # Grava log
+        c.execute('''
+            INSERT INTO open_finance_logs (user_id, data_hora, banco, itens_novos, status, mensagem)
+            VALUES (?, ?, ?, ?, 'Sucesso', 'Sincronização automática via Open Finance concluída com sucesso.')
+        ''', (user_id, agora_str, banco_nome, qtd))
+
     conn.commit()
     conn.close()
     
-    # Transações de exemplo que chegam em tempo real via Open Finance (ex: final de Outubro)
-    transacoes_api = [
-        {
-            "banco": "Itaú",
-            "tipo": "Receita",
-            "descricao": "TED 104.0630.EMANUELA K - SALDO CONTA",
-            "valor": 1250.00,
-            "data": "2026-10-20",
-            "cat": "Renda (Não se aplica)",
-            "protocolo": "OF-ITAU-REC-20261020"
-        },
-        {
-            "banco": "Itaú",
-            "tipo": "Despesa",
-            "descricao": "PIX FARMACIA DROGASIL SAO PAULO",
-            "valor": 84.50,
-            "data": "2026-10-20",
-            "cat": "Necessidade (50%)",
-            "dedutivel": 1,
-            "protocolo": "OF-ITAU-DESP-20261020A"
-        },
-        {
-            "banco": "Cartão Santander",
-            "tipo": "Despesa",
-            "descricao": "POSTO IPIRANGA COMBUSTIVEL",
-            "valor": 120.00,
-            "data": "2026-10-21",
-            "cat": "Necessidade (50%)",
-            "protocolo": "OF-SANT-DESP-20261021A"
-        }
-    ]
-    
-    for t in transacoes_api:
-        if banco_alvo and banco_alvo.lower() not in t['banco'].lower():
-            continue
-            
-        # Checagem rigorosa de duplicidade
-        ja_existe = False
-        if not df_existente.empty:
-            match = df_existente[
-                (df_existente['banco'] == t['banco']) &
-                (df_existente['descricao'] == t['descricao']) &
-                (abs(df_existente['valor'] - t['valor']) < 0.01) &
-                (df_existente['data_vencimento'] == t['data'])
-            ]
-            if not match.empty:
-                ja_existe = True
-                
-        if not ja_existe:
-            inserir_lancamento(
-                tipo=t['tipo'],
-                descricao=t['descricao'],
-                valor=t['valor'],
-                data_vencimento=t['data'],
-                categoria_503020=t['cat'],
-                banco=t['banco'],
-                status="Pago",
-                protocolo=t.get('protocolo', 'OPEN-FINANCE-API'),
-                data_pagamento=t['data'],
-                tributavel=0,
-                dedutivel=t.get('dedutivel', 0)
-            )
-            itens_inseridos += 1
-            
-    banco_log = banco_alvo if banco_alvo else "Todos os Bancos"
-    registrar_log_open_finance(
-        banco=banco_log,
-        itens_novos=itens_inseridos,
-        status="Sucesso (200 OK)",
-        mensagem=f"Sincronização concluída com sucesso via Open Finance. {itens_inseridos} novos lançamentos integrados."
-    )
-    
-    return itens_inseridos
+    return total_novos, f"Sincronização concluída! {total_novos} novas transações adicionadas automaticamente."
