@@ -166,8 +166,12 @@ if "usuario_logado" not in st.session_state:
 if not st.session_state.usuario_logado:
     st.html("""
     <style>
+    /* Fundo da Página em Esmeralda Profundo Executivo */
+    .stApp {
+        background: radial-gradient(circle at 75% 25%, #0B2B33 0%, #06191E 55%, #030F12 100%) !important;
+    }
     .block-container {
-        padding-top: max(1.5rem, calc((100vh - 640px) / 2)) !important;
+        padding-top: max(1.5rem, calc((100vh - 660px) / 2)) !important;
         padding-bottom: 1.5rem !important;
         max-width: 1140px !important;
         margin: 0 auto !important;
@@ -176,34 +180,103 @@ if not st.session_state.usuario_logado:
         background: transparent !important;
         height: 2.2rem !important;
     }
+
+    /* Rótulos dos Campos com Máxima Visibilidade (Ouro Imperial) */
+    .stTextInput label, 
+    .stTextInput label *, 
+    [data-testid="stWidgetLabel"], 
+    [data-testid="stWidgetLabel"] * {
+        color: #FFDE7A !important;
+        font-weight: 800 !important;
+        font-size: 0.95rem !important;
+        letter-spacing: 0.5px !important;
+        text-shadow: 0 1px 4px rgba(0,0,0,0.9) !important;
+        opacity: 1 !important;
+    }
+
+    /* Abas de Navegação (Opções: Entrar na Conta / Criar Nova Conta) */
     [data-baseweb="tab-list"] {
-        background: rgba(15, 23, 42, 0.6) !important;
-        border-radius: 10px !important;
-        padding: 4px !important;
-        border-bottom: none !important;
-        margin-bottom: 14px !important;
+        background: rgba(3, 16, 20, 0.9) !important;
+        border: 1.5px solid rgba(212, 175, 55, 0.45) !important;
+        border-radius: 12px !important;
+        padding: 6px !important;
+        margin-bottom: 20px !important;
+        gap: 8px !important;
     }
     [data-baseweb="tab"] {
+        background: rgba(255, 255, 255, 0.08) !important;
+        border: 1px solid rgba(212, 175, 55, 0.25) !important;
         border-radius: 8px !important;
-        color: #9CA3AF !important;
-        font-weight: 600 !important;
-        padding: 8px 16px !important;
+        padding: 10px 18px !important;
+        transition: all 0.25s ease !important;
+    }
+    [data-baseweb="tab"] * {
+        color: #E2EEF0 !important;
+        font-weight: 700 !important;
+        font-size: 0.95rem !important;
+        opacity: 1 !important;
+    }
+    [data-baseweb="tab"]:hover {
+        background: rgba(212, 175, 55, 0.2) !important;
+    }
+    [data-baseweb="tab"]:hover * {
+        color: #FFF2C2 !important;
     }
     [data-baseweb="tab"][aria-selected="true"] {
-        background: rgba(194, 163, 92, 0.2) !important;
-        color: #F3E5AB !important;
-        border-bottom: 2px solid #C2A35C !important;
+        background: linear-gradient(135deg, rgba(212, 175, 55, 0.35) 0%, rgba(11, 48, 56, 0.9) 100%) !important;
+        border: 1.5px solid #FFDE7A !important;
+        border-bottom: 3px solid #FFDE7A !important;
+        box-shadow: 0 4px 16px rgba(212, 175, 55, 0.35) !important;
+    }
+    [data-baseweb="tab"][aria-selected="true"] * {
+        color: #FFFFFF !important;
+        font-weight: 800 !important;
+        text-shadow: 0 1px 4px rgba(0,0,0,0.8) !important;
+    }
+
+    /* Campos de Entrada (Harmonia Esmeralda e Borda Dourada Nítida) */
+    [data-baseweb="input"], .stTextInput > div > div {
+        background: rgba(5, 24, 30, 0.9) !important;
+        border: 1.5px solid rgba(212, 175, 55, 0.45) !important;
+        border-radius: 10px !important;
+        transition: all 0.25s ease !important;
+    }
+    [data-baseweb="input"]:focus-within, .stTextInput > div > div:focus-within {
+        border-color: #FFDE7A !important;
+        box-shadow: 0 0 16px rgba(255, 222, 122, 0.5) !important;
+        background: rgba(7, 34, 42, 0.98) !important;
     }
     .stTextInput input {
-        background: rgba(15, 23, 42, 0.85) !important;
-        border: 1px solid rgba(194, 163, 92, 0.28) !important;
-        color: #F9F8F4 !important;
-        border-radius: 8px !important;
-        padding: 10px 14px !important;
+        background: transparent !important;
+        border: none !important;
+        color: #FFFFFF !important;
+        font-size: 0.98rem !important;
+        padding: 12px 14px !important;
+        font-weight: 500 !important;
     }
-    .stTextInput input:focus {
-        border-color: #C2A35C !important;
-        box-shadow: 0 0 12px rgba(194, 163, 92, 0.35) !important;
+    .stTextInput input::placeholder {
+        color: rgba(200, 225, 230, 0.65) !important;
+        opacity: 1 !important;
+    }
+
+    /* Botão Principal Ouro Nobre Vibrante */
+    .stButton > button {
+        background: linear-gradient(135deg, #FFDE7A 0%, #D4AF37 50%, #B88928 100%) !important;
+        color: #041418 !important;
+        font-weight: 800 !important;
+        font-size: 0.98rem !important;
+        letter-spacing: 1.2px !important;
+        text-transform: uppercase !important;
+        border: none !important;
+        border-radius: 10px !important;
+        padding: 12px 24px !important;
+        box-shadow: 0 6px 20px rgba(212, 175, 55, 0.45) !important;
+        transition: all 0.3s ease !important;
+    }
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #FFF0B8 0%, #FFDE7A 50%, #C9972E 100%) !important;
+        box-shadow: 0 8px 28px rgba(212, 175, 55, 0.65) !important;
+        transform: translateY(-2px) !important;
     }
     </style>
     """)
@@ -231,14 +304,14 @@ if not st.session_state.usuario_logado:
             
     with col_auth:
         st.html("""
-        <div class="notranslate" translate="no" style="margin-bottom: 14px;">
-            <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(194, 163, 92, 0.15); border: 1px solid rgba(194, 163, 92, 0.35); border-radius: 20px; padding: 4px 12px; margin-bottom: 8px;">
-                <span style="color: #C2A35C; font-size: 0.75rem; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;">Portal Executivo • Ambiente Demo & Comercial</span>
+        <div class="notranslate" translate="no" style="margin-bottom: 16px;">
+            <div style="display: inline-flex; align-items: center; gap: 6px; background: rgba(212, 175, 55, 0.18); border: 1px solid rgba(212, 175, 55, 0.45); border-radius: 20px; padding: 5px 14px; margin-bottom: 10px;">
+                <span style="color: #ECC86A; font-size: 0.78rem; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase;">Portal Executivo • Ambiente Demo & Comercial</span>
             </div>
-            <div style="color: #F9F8F4; font-family: 'Cinzel', serif; font-size: 1.45rem; font-weight: 700; letter-spacing: 0.5px; line-height: 1.2;">
+            <div style="color: #FFFFFF; font-family: 'Cinzel', serif; font-size: 1.65rem; font-weight: 700; letter-spacing: 0.8px; line-height: 1.2; text-shadow: 0 2px 10px rgba(0,0,0,0.5);">
                 Finanças & Consultoria
             </div>
-            <div style="color: #9CA3AF; font-size: 0.84rem; margin-top: 4px;">
+            <div style="color: #B5D5DC; font-size: 0.88rem; margin-top: 5px; font-weight: 500;">
                 Plataforma Comercial de Inteligência Contábil & Gestão Patrimonial
             </div>
         </div>
@@ -265,27 +338,29 @@ if not st.session_state.usuario_logado:
                         st.error("Credenciais inválidas. Verifique seu usuário e senha.")
                         
             st.html("""
-            <div class="notranslate" translate="no" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; margin-bottom: 12px;">
-                <div style="background: rgba(15, 26, 42, 0.6); border: 1px solid rgba(194, 163, 92, 0.2); border-radius: 8px; padding: 7px 4px; text-align: center;">
-                    <div style="font-size: 0.95rem;">🔒</div>
-                    <div style="font-size: 0.70rem; color: #C2A35C; font-weight: 600; margin-top: 2px;">Criptografia</div>
-                    <div style="font-size: 0.62rem; color: #9CA3AF;">Segurança Bancária</div>
+            <div class="notranslate" translate="no" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; margin-bottom: 12px;">
+                <div style="background: rgba(7, 30, 36, 0.75); border: 1px solid rgba(212, 175, 55, 0.28); border-radius: 10px; padding: 9px 5px; text-align: center;">
+                    <div style="font-size: 1.05rem;">🔒</div>
+                    <div style="font-size: 0.72rem; color: #ECC86A; font-weight: 700; margin-top: 3px;">Criptografia</div>
+                    <div style="font-size: 0.65rem; color: #A3C9D0;">Segurança Bancária</div>
                 </div>
-                <div style="background: rgba(15, 26, 42, 0.6); border: 1px solid rgba(194, 163, 92, 0.2); border-radius: 8px; padding: 7px 4px; text-align: center;">
-                    <div style="font-size: 0.95rem;">⚡</div>
-                    <div style="font-size: 0.70rem; color: #C2A35C; font-weight: 600; margin-top: 2px;">Open Finance</div>
-                    <div style="font-size: 0.62rem; color: #9CA3AF;">Multi-Bancos 2026</div>
+                <div style="background: rgba(7, 30, 36, 0.75); border: 1px solid rgba(212, 175, 55, 0.28); border-radius: 10px; padding: 9px 5px; text-align: center;">
+                    <div style="font-size: 1.05rem;">⚡</div>
+                    <div style="font-size: 0.72rem; color: #ECC86A; font-weight: 700; margin-top: 3px;">Open Finance</div>
+                    <div style="font-size: 0.65rem; color: #A3C9D0;">Multi-Bancos 2026</div>
                 </div>
-                <div style="background: rgba(15, 26, 42, 0.6); border: 1px solid rgba(194, 163, 92, 0.2); border-radius: 8px; padding: 7px 4px; text-align: center;">
-                    <div style="font-size: 0.95rem;">📊</div>
-                    <div style="font-size: 0.70rem; color: #C2A35C; font-weight: 600; margin-top: 2px;">Banco Central</div>
-                    <div style="font-size: 0.62rem; color: #9CA3AF;">Dados Oficiais SGS</div>
+                <div style="background: rgba(7, 30, 36, 0.75); border: 1px solid rgba(212, 175, 55, 0.28); border-radius: 10px; padding: 9px 5px; text-align: center;">
+                    <div style="font-size: 1.05rem;">📊</div>
+                    <div style="font-size: 0.72rem; color: #ECC86A; font-weight: 700; margin-top: 3px;">Banco Central</div>
+                    <div style="font-size: 0.65rem; color: #A3C9D0;">Dados Oficiais SGS</div>
                 </div>
             </div>
 
-            <div class="notranslate" translate="no" style="background: rgba(212, 175, 55, 0.08); border: 1px solid rgba(212, 175, 55, 0.25); border-radius: 8px; padding: 10px 14px; font-size: 0.78rem; color: #D1D5DB; text-align: center;">
-                👑 <b>Conta de Demonstração Rápida:</b><br>
-                Usuário: <code style="color: #F3E5AB; background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 4px; font-weight: 600;">demo</code> | Senha: <code style="color: #F3E5AB; background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 4px; font-weight: 600;">123456</code>
+            <div class="notranslate" translate="no" style="background: rgba(8, 38, 46, 0.85); border: 1.5px solid rgba(212, 175, 55, 0.4); border-radius: 10px; padding: 12px 16px; font-size: 0.82rem; color: #E5EEF0; text-align: center; box-shadow: 0 4px 18px rgba(0,0,0,0.35);">
+                👑 <b style="color: #ECC86A;">Conta de Demonstração Rápida:</b><br>
+                <div style="margin-top: 5px;">
+                    Usuário: <code style="color: #041418; background: #ECC86A; padding: 2px 7px; border-radius: 5px; font-weight: 800; font-size: 0.85rem;">demo</code> &nbsp;|&nbsp; Senha: <code style="color: #041418; background: #ECC86A; padding: 2px 7px; border-radius: 5px; font-weight: 800; font-size: 0.85rem;">123456</code>
+                </div>
             </div>
 
             <div class="notranslate" translate="no" style="text-align: center; margin-top: 14px; font-size: 0.74rem; color: #9CA3AF;">
