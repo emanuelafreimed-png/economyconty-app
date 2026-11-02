@@ -235,11 +235,31 @@ def obter_resumo_kpis(user_id, ano=None, mes=None):
 
 # ----------------- PATRIMÔNIO & ATIVOS -----------------
 
+def zerar_patrimonio(user_id):
+    init_db()
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM patrimonio WHERE user_id = ?", (user_id,))
+    cursor.execute("DELETE FROM historico_patrimonio WHERE user_id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
 def listar_patrimonio(user_id):
     init_db()
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
+    # Se NÃO for o usuário demo (user_id != 1), apaga automaticamente quaisquer ativos legados de teste (R$ 92.500)
+    if user_id != 1:
+        cursor.execute("SELECT COUNT(*) FROM patrimonio WHERE user_id = ? AND ativo IN ('Conta Corrente / Caixa', 'Reserva de Emergência (CDI)', 'Renda Fixa IPCA+ / Tesouro', 'Fundos Imobiliários (FIIs)', 'Ações Nacionais (B3)', 'Ações Brasil / Exterior', 'Previdência Privada', 'FGTS / Benefícios')", (user_id,))
+        count_amostras = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM patrimonio WHERE user_id = ?", (user_id,))
+        count_total = cursor.fetchone()[0]
+        if count_amostras > 0 and (count_amostras == count_total or count_total <= 7):
+            cursor.execute("DELETE FROM patrimonio WHERE user_id = ? AND ativo IN ('Conta Corrente / Caixa', 'Reserva de Emergência (CDI)', 'Renda Fixa IPCA+ / Tesouro', 'Fundos Imobiliários (FIIs)', 'Ações Nacionais (B3)', 'Ações Brasil / Exterior', 'Previdência Privada', 'FGTS / Benefícios')", (user_id,))
+            cursor.execute("DELETE FROM historico_patrimonio WHERE user_id = ?", (user_id,))
+            conn.commit()
+            
     # Se for o usuário de demonstração (demo, user_id == 1) e não tiver ativos, insere os de amostra
     cursor.execute('SELECT COUNT(*) FROM patrimonio WHERE user_id = ?', (user_id,))
     if cursor.fetchone()[0] == 0 and user_id == 1:

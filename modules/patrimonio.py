@@ -477,6 +477,12 @@ def render_patrimonio(user_id, nome_usuario="", manu_face_b64=""):
                             excluir_ativo(ativo_del)
                             st.warning(f"Ativo '{ativo_del}' removido da carteira.")
                             st.rerun()
+                            
+                    st.markdown("<div style='margin-top: 14px;'></div>", unsafe_allow_html=True)
+                    if st.button("🧹 Zerar Todos os Ativos (Limpar Carteira)", use_container_width=True):
+                        database.zerar_patrimonio(user_id)
+                        st.success("Carteira zerada com sucesso!")
+                        st.rerun()
             else:
                 st.write("#### ➕ Cadastre seu Primeiro Ativo ou Investimento")
                 st.caption("Insira o nome do seu bem, conta bancária ou aplicação (Ex: Conta Corrente, CDB, Imóvel, Previdência) e o saldo atual:")
