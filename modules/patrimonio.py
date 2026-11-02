@@ -83,10 +83,10 @@ def render_patrimonio(user_id, nome_usuario="", manu_face_b64=""):
         return dados
     st.markdown("""
     <div style="margin-bottom: 1.2rem; padding-bottom: 0.8rem; border-bottom: 1px solid rgba(194, 163, 92, 0.25);">
-        <h1 style="margin: 0; font-size: 2rem; font-weight: 800; background: linear-gradient(90deg, #F9F8F4, #C2A35C); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+        <h1 style="margin: 0; font-size: 2rem; font-weight: 800; background: linear-gradient(90deg, #FFFFFF, #FFDE7A); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
             💼 Gestão de Patrimônio & Ativos
         </h1>
-        <p style="margin: 4px 0 0 0; color: #7D5768; font-size: 0.9rem;">Controle consolidado dos ativos de valor, alocação estratégica e evolução temporal da riqueza</p>
+        <p style="margin: 4px 0 0 0; color: #E2EEF0; font-size: 0.95rem; font-weight: 500;">Controle consolidado dos ativos de valor, alocação estratégica e evolução temporal da riqueza</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -117,20 +117,20 @@ def render_patrimonio(user_id, nome_usuario="", manu_face_b64=""):
         df_patrimonio['tipo_classe'] = []
         df_patrimonio['percentual'] = []
 
-    # Card executivo em Verde-Petróleo, Vinho e Dourado Champagne (Paleta Oficial)
+    # Card executivo em Verde-Petróleo e Dourado Champagne (Paleta Oficial de Alto Contraste)
     st.markdown(f"""
-    <div style="background: linear-gradient(135deg, rgba(25, 48, 53, 0.9) 0%, rgba(14, 54, 70, 0.95) 100%); border: 1px solid rgba(194, 163, 92, 0.35); border-left: 6px solid #C2A35C; border-radius: 14px; padding: 22px 28px; margin-bottom: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
+    <div style="background: linear-gradient(135deg, rgba(25, 48, 53, 0.9) 0%, rgba(14, 54, 70, 0.95) 100%); border: 1.5px solid rgba(212, 175, 55, 0.45); border-left: 6px solid #FFDE7A; border-radius: 14px; padding: 22px 28px; margin-bottom: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <div>
-            <span style="color: #7D5768; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">Patrimônio Líquido Consolidado</span>
-            <div style="font-size: 2.7rem; font-weight: 800; color: #F9F8F4; margin: 4px 0; text-shadow: 0 0 15px rgba(194, 163, 92, 0.35);">
+            <span style="color: #FFDE7A; font-size: 0.88rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1.2px; text-shadow: 0 1px 3px rgba(0,0,0,0.8);">Patrimônio Líquido Consolidado</span>
+            <div style="font-size: 2.7rem; font-weight: 800; color: #FFFFFF; margin: 4px 0; text-shadow: 0 0 15px rgba(255, 222, 122, 0.4);">
                 R$ {total_patrimonio:,.2f}
             </div>
-            <span style="color: #C2A35C; font-size: 0.85rem; font-weight: 600;">✨ 100% dos Ativos Conciliados • EconomyContY</span>
+            <span style="color: #FFDE7A; font-size: 0.88rem; font-weight: 700;">✨ 100% dos Ativos Conciliados • EconomyContY</span>
         </div>
         <div style="text-align: right;">
-            <div style="background: rgba(194, 163, 92, 0.12); border: 1px solid rgba(194, 163, 92, 0.35); border-radius: 10px; padding: 10px 18px; text-align: center;">
-                <div style="font-size: 0.76rem; color: #7D5768; font-weight: 700; text-transform: uppercase;">Total de Ativos</div>
-                <div style="font-size: 1.4rem; font-weight: 700; color: #C2A35C;">{len(df_patrimonio)} Ativos</div>
+            <div style="background: rgba(212, 175, 55, 0.18); border: 1.5px solid rgba(212, 175, 55, 0.45); border-radius: 10px; padding: 10px 20px; text-align: center;">
+                <div style="font-size: 0.78rem; color: #E2EEF0; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px;">Total de Ativos</div>
+                <div style="font-size: 1.5rem; font-weight: 800; color: #FFDE7A;">{len(df_patrimonio)} Ativos</div>
             </div>
         </div>
     </div>
@@ -142,6 +142,8 @@ def render_patrimonio(user_id, nome_usuario="", manu_face_b64=""):
     ])
 
     with tab_carteira:
+        if df_patrimonio.empty:
+            st.info("💡 Você ainda não cadastrou ativos patrimoniais. Adicione seus investimentos, contas ou bens na seção abaixo para acompanhar a evolução da sua riqueza!")
 
         # 4 Cards / KPIs por Tipo de Investimento
         if not df_patrimonio.empty:
@@ -163,9 +165,9 @@ def render_patrimonio(user_id, nome_usuario="", manu_face_b64=""):
                 with col_target:
                     st.markdown(f"""
                     <div class="kpi-card" style="margin-bottom: 12px; padding: 14px 16px;">
-                        <div class="kpi-label" style="font-size: 0.74rem;">{icone} {row['tipo_classe']}</div>
-                        <div style="font-size: 1.25rem; font-weight: 700; color: #F9F8F4; margin: 4px 0;">R$ {row['saldo']:,.2f}</div>
-                        <div style="font-size: 0.75rem; color: #C2A35C; font-weight: 600;">{perc_classe:.1f}% do portfólio</div>
+                        <div class="kpi-label" style="font-size: 0.78rem; color: #FFDE7A !important; font-weight: 800;">{icone} {row['tipo_classe']}</div>
+                        <div style="font-size: 1.3rem; font-weight: 800; color: #FFFFFF; margin: 4px 0;">R$ {row['saldo']:,.2f}</div>
+                        <div style="font-size: 0.78rem; color: #FFDE7A; font-weight: 700;">{perc_classe:.1f}% do portfólio</div>
                     </div>
                     """.replace(",", "X").replace(".", ",").replace("X", "."), unsafe_allow_html=True)
 
@@ -428,48 +430,68 @@ def render_patrimonio(user_id, nome_usuario="", manu_face_b64=""):
         # 4. FERRAMENTAS DE ATUALIZAÇÃO (COLAPSÁVEL PARA MANTER A TELA LIMPA)
         # --------------------------------------------------------------------------
         st.markdown("---")
-        with st.expander("⚙️ Gerenciar Ativos & Atualizar Saldos Manuais", expanded=False):
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                st.write("#### 📝 Atualizar Saldo de Ativo Existente")
-                st.caption("ℹ️ *A apuração dos investimentos é mensal, vinculada à posição do 1º dia do mês de referência.*")
-                with st.form("form_atualizacao_manual"):
-                    ativo_selecionado = st.selectbox("Selecione o Investimento", df_patrimonio['ativo'].tolist())
-                    primeiro_dia_mes = date(date.today().year, date.today().month, 1)
-                    data_competencia = st.date_input(
-                        "Mês de Referência (Posição do 1º dia)", 
-                        value=primeiro_dia_mes,
-                        help="O fechamento consolidará este valor na competência mensal correspondente (1º dia do mês)."
-                    )
-                    saldo_total = st.number_input("Novo Saldo Consolidado (R$)", min_value=0.0, format="%.2f")
-                    submit_atualizacao = st.form_submit_button("SALVAR ATUALIZAÇÃO")
-                    if submit_atualizacao:
-                        # Garantir que a data é gravada no 1º dia do mês selecionado
-                        data_normalizada = f"{data_competencia.year:04d}-{data_competencia.month:02d}-01"
-                        atualizar_patrimonio(ativo_selecionado, saldo_total, data_normalizada)
-                        df_novo = listar_patrimonio()
-                        soma_nova = df_novo['saldo'].sum()
-                        registrar_historico_patrimonio(soma_nova, data_normalizada)
-                        st.success(f"✅ {ativo_selecionado} atualizado para R$ {saldo_total:,.2f} na competência {data_competencia.strftime('%m/%Y')}!")
-                        st.rerun()
-                    
-            with col2:
-                st.write("#### ➕ Cadastrar Novo Ativo")
-                with st.form("form_novo_ativo"):
-                    novo_ativo = st.text_input("Nome do Ativo / Investimento", placeholder="Ex: LCI Banco Inter")
-                    submit_novo = st.form_submit_button("CADASTRAR ATIVO")
+        exp_titulo = "➕ Cadastrar Seus Primeiros Ativos Patrimoniais" if df_patrimonio.empty else "⚙️ Gerenciar Ativos & Atualizar Saldos"
+        with st.expander(exp_titulo, expanded=True if df_patrimonio.empty else False):
+            if not df_patrimonio.empty:
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    st.write("#### 📝 Atualizar Saldo de Ativo Existente")
+                    st.caption("ℹ️ *A apuração dos investimentos é mensal, vinculada à posição do 1º dia do mês de referência.*")
+                    with st.form("form_atualizacao_manual"):
+                        ativo_selecionado = st.selectbox("Selecione o Investimento", df_patrimonio['ativo'].tolist())
+                        primeiro_dia_mes = date(date.today().year, date.today().month, 1)
+                        data_competencia = st.date_input(
+                            "Mês de Referência (Posição do 1º dia)", 
+                            value=primeiro_dia_mes,
+                            help="O fechamento consolidará este valor na competência mensal correspondente (1º dia do mês)."
+                        )
+                        saldo_total = st.number_input("Novo Saldo Consolidado (R$)", min_value=0.0, format="%.2f")
+                        submit_atualizacao = st.form_submit_button("SALVAR ATUALIZAÇÃO")
+                        if submit_atualizacao:
+                            data_normalizada = f"{data_competencia.year:04d}-{data_competencia.month:02d}-01"
+                            atualizar_patrimonio(ativo_selecionado, saldo_total, data_normalizada)
+                            df_novo = listar_patrimonio()
+                            soma_nova = df_novo['saldo'].sum()
+                            registrar_historico_patrimonio(soma_nova, data_normalizada)
+                            st.success(f"✅ {ativo_selecionado} atualizado para R$ {saldo_total:,.2f}!")
+                            st.rerun()
+                        
+                with col2:
+                    st.write("#### ➕ Cadastrar Novo Ativo")
+                    with st.form("form_novo_ativo"):
+                        novo_ativo = st.text_input("Nome do Ativo / Investimento", placeholder="Ex: CDB Nubank, Casa, Ações...")
+                        saldo_ini = st.number_input("Saldo Atual (R$)", min_value=0.0, format="%.2f")
+                        submit_novo = st.form_submit_button("CADASTRAR ATIVO")
+                        if submit_novo and novo_ativo:
+                            adicionar_ativo(novo_ativo, saldo_ini)
+                            df_novo = listar_patrimonio()
+                            registrar_historico_patrimonio(df_novo['saldo'].sum())
+                            st.success(f"Ativo '{novo_ativo}' adicionado!")
+                            st.rerun()
+                        
+                    st.write("#### 🗑️ Remover Ativo")
+                    with st.form("form_remover_ativo"):
+                        ativo_del = st.selectbox("Remover da Carteira", df_patrimonio['ativo'].tolist())
+                        submit_del = st.form_submit_button("EXCLUIR ATIVO")
+                        if submit_del and ativo_del:
+                            excluir_ativo(ativo_del)
+                            st.warning(f"Ativo '{ativo_del}' removido da carteira.")
+                            st.rerun()
+            else:
+                st.write("#### ➕ Cadastre seu Primeiro Ativo ou Investimento")
+                st.caption("Insira o nome do seu bem, conta bancária ou aplicação (Ex: Conta Corrente, CDB, Imóvel, Previdência) e o saldo atual:")
+                with st.form("form_primeiro_ativo"):
+                    col_a, col_b = st.columns([2, 1])
+                    with col_a:
+                        novo_ativo = st.text_input("Nome do Ativo / Investimento", placeholder="Ex: Conta Corrente Itaú, CDB 100% CDI, Imóvel...")
+                    with col_b:
+                        saldo_ini = st.number_input("Saldo Atual (R$)", min_value=0.0, format="%.2f")
+                    submit_novo = st.form_submit_button("CADASTRAR MEU PRIMEIRO ATIVO")
                     if submit_novo and novo_ativo:
-                        adicionar_ativo(novo_ativo)
-                        st.success(f"Ativo '{novo_ativo}' adicionado com sucesso!")
-                        st.rerun()
-                    
-                st.write("#### 🗑️ Remover Ativo")
-                with st.form("form_remover_ativo"):
-                    ativo_del = st.selectbox("Remover da Carteira", df_patrimonio['ativo'].tolist())
-                    submit_del = st.form_submit_button("EXCLUIR ATIVO")
-                    if submit_del and ativo_del:
-                        excluir_ativo(ativo_del)
-                        st.warning(f"Ativo '{ativo_del}' removido da carteira.")
+                        adicionar_ativo(novo_ativo, saldo_ini)
+                        df_novo = listar_patrimonio()
+                        registrar_historico_patrimonio(df_novo['saldo'].sum())
+                        st.success(f"✅ Ativo '{novo_ativo}' adicionado com sucesso! Recarregando...")
                         st.rerun()
 
             # Sub-seção de Histórico Mensal Consolidado

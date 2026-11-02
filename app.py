@@ -56,6 +56,12 @@ h1, h2, h3, .brand-title {
     text-transform: none !important;
 }
 
+h4, h5, h6, .stMarkdown h4, .stMarkdown h5 {
+    color: #FFDE7A !important;
+    font-weight: 700 !important;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
+
 /* Fundo Executivo - Verde-Petróleo Profundo & Azul-Marinho */
 .stApp {
     background: radial-gradient(circle at 85% 15%, #0E3646 0%, #193035 50%, #0F1D21 100%) !important;
@@ -84,70 +90,133 @@ section[data-testid="stSidebar"] {
     box-shadow: 0 12px 32px rgba(194, 163, 92, 0.15);
 }
 .kpi-label {
-    font-size: 0.8rem;
-    font-weight: 600;
+    font-size: 0.82rem;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: #7D5768; /* Ameixa Elegante para subtítulos/apoio */
+    color: #FFDE7A !important; /* Dourado Luminoso para legibilidade máxima */
     margin-bottom: 6px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
 }
 .kpi-val {
     font-family: 'Plus Jakarta Sans', sans-serif !important;
     font-size: 1.65rem;
-    font-weight: 700;
-    color: #F9F8F4; /* Marfim para clareza máxima */
+    font-weight: 800;
+    color: #FFFFFF !important; /* Branco Puro para clareza máxima */
 }
 
 /* Cores de Destaque Oficiais */
-.gold-text { color: #C2A35C !important; }
-.gold-intense { color: #B88A2D !important; }
+.gold-text { color: #FFDE7A !important; }
+.gold-intense { color: #E6CA65 !important; }
 .green-text { color: #10B981 !important; }
 .red-text { color: #EF4444 !important; }
-.wine-text { color: #4A1728 !important; }
-.plum-text { color: #7D5768 !important; }
+.wine-text { color: #FFDE7A !important; }
+.plum-text { color: #E2EEF0 !important; }
 
-/* Botões Customizados - Dourado Champagne & Dourado Intenso */
+/* Botões Customizados - Dourado Champagne & Ouro Vibrante */
 .stButton > button {
-    background: linear-gradient(135deg, #C2A35C 0%, #B88A2D 100%) !important;
-    color: #193035 !important; /* Texto Verde-Petróleo sobre dourado para contraste premium */
-    font-weight: 700 !important;
+    background: linear-gradient(135deg, #FFDE7A 0%, #D4AF37 50%, #B88928 100%) !important;
+    color: #041418 !important; /* Texto Escuro Executivo para Contraste Máximo */
+    font-weight: 800 !important;
     border: none !important;
     border-radius: 8px !important;
     padding: 10px 24px !important;
     transition: all 0.3s ease !important;
     letter-spacing: 0.03em !important;
+    box-shadow: 0 4px 14px rgba(212, 175, 55, 0.35) !important;
 }
 .stButton > button:hover {
-    box-shadow: 0 0 18px rgba(194, 163, 92, 0.5) !important;
+    box-shadow: 0 0 20px rgba(255, 222, 122, 0.6) !important;
     transform: scale(1.02) !important;
 }
 
-/* Abas de Navegação */
+/* Abas de Navegação Globais */
 .stTabs [data-baseweb="tab-list"] {
     gap: 8px;
-    border-bottom: 1px solid rgba(194, 163, 92, 0.25);
+    border-bottom: 1.5px solid rgba(212, 175, 55, 0.35) !important;
+    background: rgba(4, 20, 24, 0.6) !important;
+    border-radius: 10px 10px 0 0 !important;
+    padding: 4px 6px !important;
 }
 .stTabs [data-baseweb="tab"] {
     padding: 10px 18px;
     border-radius: 8px 8px 0 0;
-    color: #7D5768; /* Ameixa elegante */
-    font-weight: 600;
+    transition: all 0.2s ease !important;
+}
+.stTabs [data-baseweb="tab"] p, 
+.stTabs [data-baseweb="tab"] span {
+    color: #B5D5DC !important; /* Prata Ciano Nítido */
+    font-weight: 600 !important;
+    font-size: 0.92rem !important;
+}
+.stTabs [data-baseweb="tab"]:hover p {
+    color: #FFDE7A !important;
 }
 .stTabs [aria-selected="true"] {
-    background: rgba(194, 163, 92, 0.12) !important;
-    color: #C2A35C !important;
-    border-bottom: 2px solid #C2A35C !important;
+    background: rgba(212, 175, 55, 0.2) !important;
+    border-bottom: 2.5px solid #FFDE7A !important;
+}
+.stTabs [aria-selected="true"] p, 
+.stTabs [aria-selected="true"] span {
+    color: #FFDE7A !important;
+    font-weight: 800 !important;
+}
+
+/* Navegação da Barra Lateral (Sidebar) com Alto Contraste */
+section[data-testid="stSidebar"] [data-testid="stRadio"] label,
+section[data-testid="stSidebar"] [data-testid="stRadio"] label p,
+section[data-testid="stSidebar"] [data-testid="stRadio"] label span {
+    color: #E2EEF0 !important;
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+    opacity: 1 !important;
+}
+section[data-testid="stSidebar"] [data-testid="stRadio"] label:hover p {
+    color: #FFDE7A !important;
+}
+section[data-testid="stSidebar"] [data-testid="stRadio"] div[aria-checked="true"] + div p,
+section[data-testid="stSidebar"] [data-testid="stRadio"] label[data-checked="true"] p {
+    color: #FFDE7A !important;
+    font-weight: 800 !important;
+}
+
+/* Rótulos de Formulários e Widgets Globais (Alto Contraste Ouro) */
+.stSelectbox label, .stSelectbox label p,
+.stMultiSelect label, .stMultiSelect label p,
+.stDateInput label, .stDateInput label p,
+.stNumberInput label, .stNumberInput label p,
+.stTextInput label, .stTextInput label p,
+.stTextArea label, .stTextArea label p,
+[data-testid="stWidgetLabel"], [data-testid="stWidgetLabel"] p, [data-testid="stWidgetLabel"] span {
+    color: #FFDE7A !important;
+    font-weight: 700 !important;
+    font-size: 0.92rem !important;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8) !important;
+    opacity: 1 !important;
+}
+
+/* Rádio Buttons Internos das Páginas */
+[data-testid="stRadio"] label p, 
+[data-testid="stRadio"] label span {
+    color: #F0F6F8 !important;
+    font-weight: 600 !important;
+    font-size: 0.92rem !important;
+}
+
+/* Subtítulos e Textos Gerais Nítidos */
+.stMarkdown p, .stMarkdown span {
+    color: #E2EEF0;
 }
 
 /* Badges e Selos */
 .brand-badge {
-    background: rgba(194, 163, 92, 0.15);
-    border: 1px solid rgba(194, 163, 92, 0.4);
+    background: rgba(212, 175, 55, 0.18);
+    border: 1px solid rgba(212, 175, 55, 0.45);
     border-radius: 20px;
     padding: 4px 14px;
     font-size: 0.76rem;
-    color: #C2A35C;
-    font-weight: 600;
+    color: #FFDE7A;
+    font-weight: 700;
     display: inline-block;
 }
 </style>
@@ -436,8 +505,6 @@ with st.sidebar:
             "🏠 Painel Principal",
             "✍️ Lançamentos",
             "📊 Extrato e Alertas",
-            "📄 Leitor de Rendas (PDF)",
-            "🤝 Conciliação Bancária",
             "🔄 Open Finance (Bancos)",
             "💳 Faturas de Cartão",
             "💼 Meu Patrimônio",
@@ -471,14 +538,6 @@ elif "Lançamentos" in menu:
 elif "Extrato" in menu:
     from modules.extrato import render_extrato
     render_extrato(user_id=user_id, nome_usuario=nome_usuario, manu_face_b64=manu_face_b64)
-
-elif "Leitor" in menu:
-    from modules.leitor_rendas import render_leitor_rendas
-    render_leitor_rendas(user_id=user_id, nome_usuario=nome_usuario, manu_face_b64=manu_face_b64)
-
-elif "Conciliação" in menu:
-    from modules.conciliacao import render_conciliacao
-    render_conciliacao(user_id=user_id, nome_usuario=nome_usuario, manu_face_b64=manu_face_b64)
 
 elif "Open Finance" in menu:
     st.markdown("""

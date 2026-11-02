@@ -20,7 +20,7 @@ def render_lancamentos(user_id, nome_usuario="", manu_face_b64=""):
         <h1 style="margin: 0; font-size: 2rem; font-weight: 800; background: linear-gradient(90deg, #F9FAFB, #D4AF37); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
             ✍️ Lançamentos Financeiros & Scanner IA
         </h1>
-        <p style="margin: 4px 0 0 0; color: #9CA3AF; font-size: 0.9rem;">Capture notas fiscais com IA, registre receitas/despesas em lote ou importe extratos bancários</p>
+        <p style="margin: 4px 0 0 0; color: #E2EEF0; font-size: 0.95rem; font-weight: 500;">Capture notas fiscais com IA, registre receitas/despesas em lote ou importe extratos bancários</p>
     </div>
     ''', unsafe_allow_html=True)
 

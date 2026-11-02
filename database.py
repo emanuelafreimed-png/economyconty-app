@@ -240,9 +240,9 @@ def listar_patrimonio(user_id):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # Se usuário ainda não tem ativos cadastrados, insere os ativos padrão
+    # Se for o usuário de demonstração (demo, user_id == 1) e não tiver ativos, insere os de amostra
     cursor.execute('SELECT COUNT(*) FROM patrimonio WHERE user_id = ?', (user_id,))
-    if cursor.fetchone()[0] == 0:
+    if cursor.fetchone()[0] == 0 and user_id == 1:
         ativos_padrao = [
             ("Conta Corrente / Caixa", 2500.0),
             ("Reserva de Emergência (CDI)", 15000.0),
@@ -334,10 +334,10 @@ def listar_historico_patrimonio(user_id):
     init_db()
     conn = sqlite3.connect(DB_NAME)
     
-    # Se usuário não tem histórico, injeta dados de amostra para demonstração
+    # Se usuário for o demo (user_id == 1) e não tiver histórico, injeta dados de amostra
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM historico_patrimonio WHERE user_id = ?", (user_id,))
-    if cursor.fetchone()[0] == 0:
+    if cursor.fetchone()[0] == 0 and user_id == 1:
         amostras = [
             ("2026-01-01", 62000.0),
             ("2026-02-01", 66500.0),
