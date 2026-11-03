@@ -81,39 +81,60 @@ def extrair_dados_recibo_ia(image_bytes, api_key=None):
                 }
             }
             
-            response = requests.post(url, headers=headers, json=payload, timeout=20)
+            response = requests.post(url, headers=headers, json=payload, timeout=25)
             if response.status_code == 200:
                 res_data = response.json()
                 texto_json = res_data['candidates'][0]['content']['parts'][0]['text']
-                # Limpar possíveis crases
+                # Limpar possíveis crases e formatação markdown
                 texto_json = re.sub(r'^```json\s*', '', texto_json)
                 texto_json = re.sub(r'\s*```$', '', texto_json)
-                dados = json.loads(texto_json.strip())
+                texto_json = texto_json.strip()
+                dados = json.loads(texto_json)
                 return {
                     "sucesso": True,
-                    "origem_ia": "Google Gemini Vision AI",
+                    "origem_ia": "Google Gemini Vision AI (Visão Multimodal)",
                     "estabelecimento": str(dados.get("estabelecimento", "Estabelecimento Comercial")),
                     "valor_total": float(dados.get("valor_total", 0.0)),
                     "data": str(dados.get("data", datetime.now().strftime("%Y-%m-%d"))),
                     "categoria_sugerida": str(dados.get("categoria_sugerida", "Outros")),
-                    "itens_detectados": str(dados.get("itens_detectados", "Itens diversos")),
+                    "itens_detectados": str(dados.get("itens_detectados", "")),
+                }
+            else:
+                err_msg = "Chave de API inválida ou limite atingido."
+                try:
+                    res_err = response.json()
+                    err_msg = res_err.get('error', {}).get('message', err_msg)
+                except Exception:
+                    pass
+                return {
+                    "sucesso": False,
+                    "mensagem": f"Falha na API Google Gemini ({response.status_code}): {err_msg}",
+                    "estabelecimento": "",
+                    "valor_total": 0.0,
+                    "data": datetime.now().strftime("%Y-%m-%d"),
+                    "categoria_sugerida": "Outros",
+                    "itens_detectados": "",
                 }
         except Exception as e:
-            # Em caso de falha de conexão na API, utiliza o fallback inteligente
-            pass
+            return {
+                "sucesso": False,
+                "mensagem": f"Erro de conexão com o serviço de IA: {str(e)}",
+                "estabelecimento": "",
+                "valor_total": 0.0,
+                "data": datetime.now().strftime("%Y-%m-%d"),
+                "categoria_sugerida": "Outros",
+                "itens_detectados": "",
+            }
 
-    # =========================================================================
-    # MOTOR DE OCR E RECONHECIMENTO PADRÃO (Sem necessidade de chave externa)
-    # Analisa padrões visuais ou faz extração simulada inteligente para demonstração
-    # =========================================================================
+    # Sem chave de IA fornecida: orienta o usuário de forma clara
     agora_str = datetime.now().strftime("%Y-%m-%d")
-    
     return {
-        "sucesso": True,
-        "origem_ia": "EconomyContY Vision Core (Modo Padrão)",
-        "estabelecimento": "Comércio / Restaurante Identificado",
-        "valor_total": 45.90,
+        "sucesso": False,
+        "mensagem": "Nenhuma chave do Google Gemini foi informada. Insira sua chave gratuita de IA no campo acima para ativar o reconhecimento visual automático.",
+        "origem_ia": "Entrada Manual (Aguardando Chave de IA)",
+        "estabelecimento": "",
+        "valor_total": 0.0,
         "data": agora_str,
-        "categoria_sugerida": "Alimentação",
-        "itens_detectados": "Refeição / Itens de consumo",
+        "categoria_sugerida": "Outros",
+        "itens_detectados": "",
     }

@@ -6,6 +6,7 @@ from datetime import datetime, date
 import database
 from ai_scanner import extrair_dados_recibo_ia
 from utils import render_footer_economyconty
+import io
 
 def render_lancamentos(user_id, nome_usuario="", manu_face_b64=""):
     def listar_lancamentos():
@@ -40,15 +41,41 @@ def render_lancamentos(user_id, nome_usuario="", manu_face_b64=""):
             </div>
         ''', unsafe_allow_html=True)
         
-        origem_foto = st.radio("Como deseja enviar o cupom?", ["📷 Tirar Foto com a Câmera", "📁 Escolher da Galeria / Arquivo"], horizontal=True, key="origem_foto_scanner")
+        # Configuração da Chave Gemini AI
+        chave_gemini = st.session_state.get("gemini_api_key", "")
+        if not chave_gemini and hasattr(st, "secrets") and "GEMINI_API_KEY" in st.secrets:
+            chave_gemini = str(st.secrets["GEMINI_API_KEY"]).strip()
+        if not chave_gemini:
+            import os
+            chave_gemini = os.environ.get("GEMINI_API_KEY", "")
+
+        with st.expander("🔑 Chave de Inteligência Artificial da Manu (Google Gemini)", expanded=not bool(chave_gemini)):
+            st.markdown("""
+            Para que a Manu leia **o valor exato, data, local e itens** de qualquer foto de cupom fiscal, utilize a visão computacional do Google Gemini.
+            * Obtenha sua chave gratuita em: **[Google AI Studio](https://aistudio.google.com/app/apikey)** *(gratuito e sem cartão)*.
+            """)
+            nova_key = st.text_input("Cole sua chave Gemini API aqui:", value=chave_gemini, type="password", key="input_gemini_key", placeholder="AIzaSy...")
+            if nova_key and nova_key.strip() != chave_gemini:
+                st.session_state.gemini_api_key = nova_key.strip()
+                chave_gemini = nova_key.strip()
+                st.success("Chave de IA ativada com sucesso!")
+
+        origem_foto = st.radio(
+            "Como deseja enviar o cupom?", 
+            ["📁 Escolher da Galeria ou Câmera (Recomendado)", "📷 Câmera ao Vivo no Navegador (Webcam)"], 
+            horizontal=True, 
+            key="origem_foto_scanner"
+        )
         
         imagem_bytes = None
-        if origem_foto == "📷 Tirar Foto com a Câmera":
+        if origem_foto == "📷 Câmera ao Vivo no Navegador (Webcam)":
+            st.caption("ℹ️ *Se a câmera não abrir, verifique se a permissão foi concedida no navegador ou utilize a opção 'Galeria ou Câmera' que usa a câmera nativa do celular.*")
             foto_camera = st.camera_input("Aponte para o cupom ou nota fiscal", key="cam_cupom_ia")
             if foto_camera is not None:
                 imagem_bytes = foto_camera.getvalue()
         else:
-            upload_foto = st.file_uploader("Selecione a imagem do recibo ou cupom", type=["jpg", "jpeg", "png"], key="upl_cupom_ia")
+            st.caption("💡 *No celular, ao tocar no botão abaixo você pode fotografar diretamente com a câmera do smartphone ou selecionar uma foto já tirada.*")
+            upload_foto = st.file_uploader("Selecione ou fotografe o recibo/cupom:", type=["jpg", "jpeg", "png"], key="upl_cupom_ia")
             if upload_foto is not None:
                 imagem_bytes = upload_foto.getvalue()
                 
@@ -61,17 +88,20 @@ def render_lancamentos(user_id, nome_usuario="", manu_face_b64=""):
                 st.image(imagem_bytes, caption="Cupom Capturado", use_container_width=True)
                 if st.button("🔍 ANALISAR COM IA AGORA", use_container_width=True, key="btn_run_ia_scanner"):
                     with st.spinner("Inteligência Artificial analisando texto, valores e categorias..."):
-                        chave_gemini = st.session_state.get("gemini_api_key", "")
                         resultado_ia = extrair_dados_recibo_ia(imagem_bytes, api_key=chave_gemini)
                         st.session_state.dados_ia_scanner = resultado_ia
-                        st.success("Leitura concluída com sucesso! Confira e edite os campos ao lado.")
+                        if resultado_ia.get("sucesso"):
+                            st.success("✅ Leitura concluída com sucesso! Confira e edite os campos ao lado.")
+                        else:
+                            st.warning(resultado_ia.get("mensagem", "Aviso da IA."))
                         
             with col_ia:
                 if st.session_state.dados_ia_scanner:
                     d = st.session_state.dados_ia_scanner
+                    badge_color = "#10B981" if d.get("sucesso") else "#F59E0B"
                     st.markdown(f'''
-                        <div style='background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 15px; font-size: 0.85rem; color: #10B981;'>
-                            ✨ <b>Identificado pela IA:</b> {d.get('origem_ia', 'Visão Computacional')}
+                        <div style='background: rgba(16, 185, 129, 0.1); border: 1px solid {badge_color}; border-radius: 8px; padding: 10px 14px; margin-bottom: 15px; font-size: 0.85rem; color: {badge_color};'>
+                            ✨ <b>Identificado pela IA:</b> {d.get('origem_ia', 'Leitor Visual')}
                         </div>
                     ''', unsafe_allow_html=True)
                     
@@ -197,7 +227,6 @@ def render_lancamentos(user_id, nome_usuario="", manu_face_b64=""):
                         st.success("Lançamento salvo com sucesso no banco de dados!")
 
     with tab_csv:
-        import io
         st.write("#### 📂 Importação em Lote de Despesas (CSV / Extrato Bancário)")
         st.caption("Carregue seu extrato do Itaú ou planilha de despesas (arquivo CSV ou Excel) para lançar todas as contas de uma só vez, com categorização automática da Regra 50/30/20 e detecção de IRPF.")
         
@@ -409,7 +438,6 @@ def render_lancamentos(user_id, nome_usuario="", manu_face_b64=""):
                     st.info("ℹ️ Todos os lançamentos deste arquivo já constam no banco de dados!")
                 else:
                     if st.button(f"💾 Confirmar e Salvar {qtd_novos} Despesas no Extrato", type="primary", use_container_width=True):
-                        import uuid
                         protocolo_desp = f"CSV-DESP-{str(uuid.uuid4())[:6].upper()}"
                         
                         salvos_cont = 0
