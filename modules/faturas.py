@@ -12,8 +12,10 @@ from utils import render_footer_economyconty, obter_cor_banco
 def render_faturas(user_id, nome_usuario="", manu_face_b64=""):
     def listar_lancamentos():
         return database.listar_lancamentos(user_id)
-    def inserir_lancamento(tipo, descricao, valor, data_vencimento, categoria="Geral", conta="Conta Principal", status="Realizado", protocolo=None, data_pagamento=None, tributavel=0, dedutivel=0, **kwargs):
-        return database.inserir_lancamento(user_id, tipo, descricao, valor, data_vencimento, categoria=categoria, conta=conta, status=status, protocolo=protocolo, data_pagamento=data_pagamento, tributavel=tributavel, dedutivel=dedutivel, **kwargs)
+    def inserir_lancamento(tipo, descricao, valor, data_vencimento, categoria="Geral", conta="Conta Principal", status="Realizado", protocolo=None, data_pagamento=None, tributavel=0, dedutivel=0, subcategoria=None, **kwargs):
+        return database.inserir_lancamento(user_id, tipo, descricao, valor, data_vencimento, categoria=categoria, conta=conta, status=status, protocolo=protocolo, data_pagamento=data_pagamento, tributavel=tributavel, dedutivel=dedutivel, subcategoria=subcategoria, **kwargs)
+    TODAS_SUBCATEGORIAS = database.TODAS_SUBCATEGORIAS
+    inferir_subcategoria_icone = database.inferir_subcategoria_icone
 
     st.markdown("""
     <div style="margin-bottom: 1.5rem; padding-bottom: 0.8rem; border-bottom: 1px solid rgba(212, 175, 55, 0.2);">
@@ -113,7 +115,33 @@ def render_faturas(user_id, nome_usuario="", manu_face_b64=""):
                 st.plotly_chart(fig_linha, use_container_width=True)
                 
         with g_col2:
-            tab_cat, tab_pct = st.tabs(["🎯 Por Categoria (50/30/20)", "📊 Distribuição Percentual"])
+            tab_sub_f, tab_cat, tab_pct = st.tabs(["🏷️ Por Ícone", "🎯 Por Categoria (50/30/20)", "📊 Distribuição Percentual"])
+            
+            with tab_sub_f:
+                if 'subcategoria' in df_cartao_evol.columns:
+                    df_sub_card = df_cartao_evol[df_cartao_evol['tipo'] == 'Despesa'].groupby('subcategoria', as_index=False)['valor'].sum().sort_values('valor', ascending=True)
+                    fig_sub_c = px.bar(
+                        df_sub_card,
+                        x='valor',
+                        y='subcategoria',
+                        orientation='h',
+                        title='Gastos Acumulados nos Cartões por Categoria (Ícone)',
+                        color='valor',
+                        color_continuous_scale=['#4E89AE', '#C2A35C', '#D97736']
+                    )
+                    fig_sub_c.update_traces(texttemplate='R$ %{x:,.2f}', textposition='outside')
+                    fig_sub_c.update_layout(
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(family='Plus Jakarta Sans', color='#F9FAFB'),
+                        xaxis=dict(title='Valor (R$)', gridcolor='rgba(212, 175, 55, 0.1)'),
+                        yaxis=dict(title='', showgrid=False),
+                        coloraxis_showscale=False,
+                        margin=dict(l=10, r=40, t=40, b=10)
+                    )
+                    st.plotly_chart(fig_sub_c, use_container_width=True)
+                else:
+                    st.info("Sem subcategorias registradas.")
             
             cores_cat = {
                 'Necessidade (50%)': '#4E89AE',   # Azul Ardósia Suave
@@ -208,15 +236,19 @@ def render_faturas(user_id, nome_usuario="", manu_face_b64=""):
                             d['Categoria'] = "Desejo (30%)"
                             if "microsoft" in d['Descrição'].lower() or "youse" in d['Descrição'].lower():
                                 d['Categoria'] = "Necessidade (50%)"
+                            d['Subcategoria'] = inferir_subcategoria_icone(d['Descrição'], d.get('Tipo', 'Despesa'), d['Categoria'])
                                 
                         st.session_state[cache_key_sant] = pd.DataFrame(dados_santander)
                     
                     df_editor = st.session_state[cache_key_sant]
+                    if 'Subcategoria' not in df_editor.columns:
+                        df_editor['Subcategoria'] = df_editor.apply(lambda r: inferir_subcategoria_icone(r['Descrição'], r.get('Tipo', 'Despesa'), r.get('Categoria', '')), axis=1)
                     soma_total = df_editor[df_editor['Tipo'] == 'Despesa']['Valor'].sum() - df_editor[df_editor['Tipo'] == 'Receita']['Valor'].sum() if 'Tipo' in df_editor.columns else df_editor['Valor'].sum()
                     st.markdown(f"**Total Identificado:** `R$ {soma_total:,.2f}`".replace(",", "X").replace(".", ",").replace("X", "."))
                     
                     config_colunas = {
-                        "Categoria": st.column_config.SelectboxColumn("Categoria", options=["Necessidade (50%)", "Desejo (30%)", "Investimento (20%)", "Renda (Não se aplica)"], required=True),
+                        "Subcategoria": st.column_config.SelectboxColumn("Categoria (Ícone) 🏷️", options=TODAS_SUBCATEGORIAS, required=True),
+                        "Categoria": st.column_config.SelectboxColumn("Regra 50/30/20", options=["Necessidade (50%)", "Desejo (30%)", "Investimento (20%)", "Renda (Não se aplica)"], required=True),
                         "Tipo": st.column_config.SelectboxColumn("Tipo", options=["Despesa", "Receita"], required=True),
                         "Valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f", disabled=True),
                         "Data": st.column_config.TextColumn("Data", disabled=True),
@@ -237,6 +269,7 @@ def render_faturas(user_id, nome_usuario="", manu_face_b64=""):
                             tipo = row_f['Tipo']
                             desc = row_f['Descrição']
                             cat = row_f['Categoria']
+                            subcat = row_f.get('Subcategoria', inferir_subcategoria_icone(desc, tipo, cat))
                             valor = float(row_f['Valor'])
                             data_str_curta = row_f['Data'] # Vem como 05/12
                             parcela_txt = row_f['Parcela']
@@ -247,7 +280,7 @@ def render_faturas(user_id, nome_usuario="", manu_face_b64=""):
                             dia_s, mes_s = data_str_curta.split('/')
                             data_venc_str = f"{ano_atual}-{mes_s}-{dia_s}"
                             
-                            inserir_lancamento(tipo, desc, valor, data_venc_str, cat, banco_cartao, "Pago", protocolo, str(data_pagamento_fatura))
+                            inserir_lancamento(tipo, desc, valor, data_venc_str, cat, banco_cartao, "Pago", protocolo, str(data_pagamento_fatura), subcategoria=subcat)
                             
                             if projetar_parcelas and parcela_txt != "-":
                                 try:
@@ -257,7 +290,7 @@ def render_faturas(user_id, nome_usuario="", manu_face_b64=""):
                                         for p in range(atual + 1, total + 1):
                                             data_futura = data_obj + relativedelta(months=p - atual)
                                             desc_futura = f"{desc} (Parcela {p}/{total})"
-                                            inserir_lancamento(tipo, desc_futura, valor, data_futura.strftime('%Y-%m-%d'), cat, banco_cartao, "A Pagar", protocolo, data_futura.strftime('%Y-%m-%d'))
+                                            inserir_lancamento(tipo, desc_futura, valor, data_futura.strftime('%Y-%m-%d'), cat, banco_cartao, "A Pagar", protocolo, data_futura.strftime('%Y-%m-%d'), subcategoria=subcat)
                                 except Exception as e:
                                     st.error(f"Erro ao projetar parcela de {desc}: {e}")
                                     
@@ -342,12 +375,14 @@ def render_faturas(user_id, nome_usuario="", manu_face_b64=""):
                             cat_sugerida = "Necessidade (50%)"
                         elif tipo_sugerido == "Receita" or "cancelamento" in desc_str.lower() or "estorno" in desc_str.lower():
                             cat_sugerida = "Renda (Não se aplica)"
+                        sub_sugerida = inferir_subcategoria_icone(desc_str, tipo_sugerido, cat_sugerida)
                         
                         despesas_fatura.append({
                             "Data": data_str,
                             "Descrição": desc_str,
                             "Parcela": info_parcela,
                             "Valor": abs(val_num),
+                            "Subcategoria": sub_sugerida,
                             "Categoria": cat_sugerida,
                             "Tipo": tipo_sugerido
                         })
@@ -359,6 +394,8 @@ def render_faturas(user_id, nome_usuario="", manu_face_b64=""):
 
                 df_editor = st.session_state.get(cache_key_excel)
                 if df_editor is not None and len(df_editor) > 0:
+                    if 'Subcategoria' not in df_editor.columns:
+                        df_editor['Subcategoria'] = df_editor.apply(lambda r: inferir_subcategoria_icone(r['Descrição'], r.get('Tipo', 'Despesa'), r.get('Categoria', '')), axis=1)
                     st.write(f"### 🧾 Arquivo: {arquivo.name} ({len(df_editor)} despesas)")
                     soma_total = df_editor[df_editor['Tipo'] == 'Despesa']['Valor'].sum() - df_editor[df_editor['Tipo'] == 'Receita']['Valor'].sum() if 'Tipo' in df_editor.columns else df_editor['Valor'].sum()
                     
@@ -366,7 +403,8 @@ def render_faturas(user_id, nome_usuario="", manu_face_b64=""):
                     
                     # Cria a visualização estilo fatura interativa
                     config_colunas = {
-                        "Categoria": st.column_config.SelectboxColumn("Categoria", options=["Necessidade (50%)", "Desejo (30%)", "Investimento (20%)", "Renda (Não se aplica)"], required=True),
+                        "Subcategoria": st.column_config.SelectboxColumn("Categoria (Ícone) 🏷️", options=TODAS_SUBCATEGORIAS, required=True),
+                        "Categoria": st.column_config.SelectboxColumn("Regra 50/30/20", options=["Necessidade (50%)", "Desejo (30%)", "Investimento (20%)", "Renda (Não se aplica)"], required=True),
                         "Tipo": st.column_config.SelectboxColumn("Tipo", options=["Despesa", "Receita"], required=True),
                         "Valor": st.column_config.NumberColumn("Valor (R$)", format="R$ %.2f", disabled=True),
                         "Data": st.column_config.TextColumn("Data", disabled=True),
@@ -387,12 +425,13 @@ def render_faturas(user_id, nome_usuario="", manu_face_b64=""):
                             tipo = row_f['Tipo']
                             desc = row_f['Descrição']
                             cat = row_f['Categoria']
+                            subcat = row_f.get('Subcategoria', inferir_subcategoria_icone(desc, tipo, cat))
                             valor = float(row_f['Valor']) # Força o tipo float nativo do Python!
                             data_venc_str = row_f['Data']
                             parcela_txt = row_f['Parcela']
                             
                             # Salva a parcela atual
-                            inserir_lancamento(tipo, desc, valor, data_venc_str, cat, banco_cartao, "Pago", protocolo, str(data_pagamento_fatura))
+                            inserir_lancamento(tipo, desc, valor, data_venc_str, cat, banco_cartao, "Pago", protocolo, str(data_pagamento_fatura), subcategoria=subcat)
                             
                             # Projeta as futuras se tiver parcela ex: 1/4
                             if projetar_parcelas and parcela_txt != "-":
@@ -403,7 +442,7 @@ def render_faturas(user_id, nome_usuario="", manu_face_b64=""):
                                         for p in range(atual + 1, total + 1):
                                             data_futura = data_obj + relativedelta(months=p - atual)
                                             desc_futura = f"{desc} (Parcela {p}/{total})"
-                                            inserir_lancamento(tipo, desc_futura, valor, data_futura.strftime('%Y-%m-%d'), cat, banco_cartao, "A Pagar", protocolo, data_futura.strftime('%Y-%m-%d'))
+                                            inserir_lancamento(tipo, desc_futura, valor, data_futura.strftime('%Y-%m-%d'), cat, banco_cartao, "A Pagar", protocolo, data_futura.strftime('%Y-%m-%d'), subcategoria=subcat)
                                 except Exception as e:
                                     st.error(f"Erro ao projetar parcela de {desc}: {e}")
                                     

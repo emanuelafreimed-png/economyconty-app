@@ -142,6 +142,7 @@ def render_leitor_rendas(user_id, nome_usuario="", manu_face_b64=""):
                     else:
                         r['Tipo'] = "Outras Receitas"
                         r['Categoria'] = "Renda (Não se aplica)"
+                    r['Subcategoria'] = database.inferir_subcategoria_icone(r['Descricao'], r['Tipo'], r['Categoria'])
                 
                 st.success(f"Encontramos {len(resultados)} entradas no extrato!")
                 df_prev = pd.DataFrame(resultados)
@@ -161,7 +162,8 @@ def render_leitor_rendas(user_id, nome_usuario="", manu_face_b64=""):
                             banco="Itaú",
                             status="Pago",
                             protocolo=protocolo_ext,
-                            data_pagamento=dados['Data']
+                            data_pagamento=dados['Data'],
+                            subcategoria=dados.get('Subcategoria')
                         )
                     st.success(f"{len(resultados)} lançamento(s) adicionado(s) com categorização automática ao banco de dados com sucesso!")
             elif ext_nome.endswith(('.xlsx', '.xls', '.xltx', '.csv')):

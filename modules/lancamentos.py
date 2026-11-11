@@ -11,10 +11,14 @@ import io
 def render_lancamentos(user_id, nome_usuario="", manu_face_b64=""):
     def listar_lancamentos():
         return database.listar_lancamentos(user_id)
-    def inserir_lancamento(tipo, descricao, valor, data_vencimento, categoria="Geral", conta="Conta Principal", status="Realizado", protocolo=None, data_pagamento=None, tributavel=0, dedutivel=0, **kwargs):
-        return database.inserir_lancamento(user_id, tipo, descricao, valor, data_vencimento, categoria=categoria, conta=conta, status=status, protocolo=protocolo, data_pagamento=data_pagamento, tributavel=tributavel, dedutivel=dedutivel, **kwargs)
-    def adicionar_lancamento(tipo, descricao, valor, data_vencimento, categoria="Geral", conta="Conta Principal", status="Realizado", dedutivel=0, tributavel=0, origem="Manual", protocolo=None, data_pagamento=None, **kwargs):
-        return database.adicionar_lancamento(user_id, tipo, descricao, valor, data_vencimento, categoria=categoria, conta=conta, status=status, dedutivel=dedutivel, tributavel=tributavel, origem=origem, protocolo=protocolo, data_pagamento=data_pagamento, **kwargs)
+    def inserir_lancamento(tipo, descricao, valor, data_vencimento, categoria="Geral", conta="Conta Principal", status="Realizado", protocolo=None, data_pagamento=None, tributavel=0, dedutivel=0, subcategoria=None, **kwargs):
+        return database.inserir_lancamento(user_id, tipo, descricao, valor, data_vencimento, categoria=categoria, conta=conta, status=status, protocolo=protocolo, data_pagamento=data_pagamento, tributavel=tributavel, dedutivel=dedutivel, subcategoria=subcategoria, **kwargs)
+    def adicionar_lancamento(tipo, descricao, valor, data_vencimento, categoria="Geral", conta="Conta Principal", status="Realizado", dedutivel=0, tributavel=0, origem="Manual", protocolo=None, data_pagamento=None, subcategoria=None, **kwargs):
+        return database.adicionar_lancamento(user_id, tipo, descricao, valor, data_vencimento, categoria=categoria, conta=conta, status=status, dedutivel=dedutivel, tributavel=tributavel, origem=origem, protocolo=protocolo, data_pagamento=data_pagamento, subcategoria=subcategoria, **kwargs)
+    SUBCATEGORIAS_DESPESAS = database.SUBCATEGORIAS_DESPESAS
+    SUBCATEGORIAS_RECEITAS = database.SUBCATEGORIAS_RECEITAS
+    MAPA_SUBCATEGORIA_503020 = database.MAPA_SUBCATEGORIA_503020
+    inferir_subcategoria_icone = database.inferir_subcategoria_icone
 
     st.markdown('''
     <div style="margin-bottom: 1.5rem; padding-bottom: 0.8rem; border-bottom: 1px solid rgba(212, 175, 55, 0.2);">
@@ -119,16 +123,12 @@ def render_lancamentos(user_id, nome_usuario="", manu_face_b64=""):
                                 pass
                             ed_data = st.date_input("Data da Emissão", value=data_padrao)
                             
-                        categorias_opcoes = [
-                            "Alimentação", "Transporte", "Moradia", "Saúde", "Educação", 
-                            "Lazer", "Serviços", "Receita Principal", "Investimentos", "Outros"
-                        ]
-                        cat_sugerida = d.get("categoria_sugerida", "Outros")
-                        idx_cat = categorias_opcoes.index(cat_sugerida) if cat_sugerida in categorias_opcoes else 0
+                        sub_ia_sug = inferir_subcategoria_icone(d.get("estabelecimento", "") + " " + d.get("categoria_sugerida", ""), "Despesa")
+                        idx_cat = SUBCATEGORIAS_DESPESAS.index(sub_ia_sug) if sub_ia_sug in SUBCATEGORIAS_DESPESAS else 0
                         
                         col_e3, col_e4 = st.columns(2)
                         with col_e3:
-                            ed_cat = st.selectbox("Categoria (Sugerida pela IA)", categorias_opcoes, index=idx_cat)
+                            ed_cat = st.selectbox("Categoria com Ícone (Sugerida pela IA)", SUBCATEGORIAS_DESPESAS, index=idx_cat)
                         with col_e4:
                             ed_conta = st.selectbox("Conta / Meio de Pagamento", ["Cartão de Crédito", "Conta Corrente Principal", "Carteira / Dinheiro Vivo", "Poupança"])
                             
@@ -140,34 +140,64 @@ def render_lancamentos(user_id, nome_usuario="", manu_face_b64=""):
                                 st.warning("Informe uma descrição válida e um valor maior que zero.")
                             else:
                                 desc_final = f"{ed_desc} ({ed_itens})" if ed_itens else ed_desc
+                                cat_503020_ia = MAPA_SUBCATEGORIA_503020.get(ed_cat, "Desejo (30%)")
+                                ded_ia = 1 if ed_cat in ["💊 Saúde & Farmácia", "🎓 Educação & Cursos"] else 0
                                 adicionar_lancamento(
                                     tipo="Despesa",
                                     descricao=desc_final,
                                     valor=ed_valor,
                                     data_vencimento=ed_data.strftime("%Y-%m-%d"),
-                                    categoria=ed_cat,
+                                    categoria=cat_503020_ia,
+                                    subcategoria=ed_cat,
                                     conta=ed_conta,
+                                    dedutivel=ded_ia,
                                     origem="Scanner IA"
                                 )
                                 st.session_state.dados_ia_scanner = None
-                                st.success(f"✅ Despesa de R$ {ed_valor:,.2f} em '{ed_desc}' registrada com sucesso!")
+                                st.success(f"✅ Despesa de R$ {ed_valor:,.2f} em '{ed_desc}' ({ed_cat}) registrada com sucesso!")
                                 st.rerun()
                 else:
                     st.info("👆 Tire uma foto do seu cupom fiscal ou selecione da galeria e clique em **ANALISAR COM IA AGORA** para preencher automaticamente.")
 
     with tab_manual:
+        st.markdown("##### 🏷️ Selecione o Tipo e a Categoria com Ícone")
+        col_top1, col_top2 = st.columns(2)
+        with col_top1:
+            tipo = st.selectbox("Tipo de Lançamento", ["Despesa", "Receita", "Outras Receitas", "Resgate de Investimento"], key="man_tipo_sel")
+        with col_top2:
+            opcoes_sub_atual = SUBCATEGORIAS_DESPESAS if tipo == "Despesa" else SUBCATEGORIAS_RECEITAS
+            subcategoria = st.selectbox("Categoria com Ícone (Detalhada)", opcoes_sub_atual, key="man_subcat_sel")
+
+        cat_503020_sugerida = MAPA_SUBCATEGORIA_503020.get(subcategoria, "Necessidade (50%)" if tipo == "Despesa" else "Renda (Não se aplica)")
+        opcoes_503020 = ["Necessidade (50%)", "Desejo (30%)", "Investimento (20%)", "Renda (Não se aplica)"]
+        idx_503020 = opcoes_503020.index(cat_503020_sugerida) if cat_503020_sugerida in opcoes_503020 else 0
+
+        sonho_id_form = None
+        if tipo == "Despesa" and ("Patrimônio" in subcategoria or cat_503020_sugerida == "Investimento (20%)"):
+            df_sonhos_form = database.listar_sonhos(user_id)
+            if not df_sonhos_form.empty:
+                opcoes_sonhos_f = {"Não vincular a nenhuma Caixinha": None}
+                for _, rs in df_sonhos_form.iterrows():
+                    pct_f = max(100.0 - (float(rs['valor_atual']) / max(float(rs['valor_alvo']), 0.01) * 100.0), 0.0)
+                    opcoes_sonhos_f[f"🎯 {rs['titulo']} (Acumulado: R$ {float(rs['valor_atual']):,.2f} | Falta {pct_f:.1f}%)"] = int(rs['id'])
+                escolha_sonho_f = st.selectbox(
+                    "🎯 Aplicar este investimento em qual Caixinha / Sonho Planejado?",
+                    list(opcoes_sonhos_f.keys()),
+                    key="man_sonho_sel"
+                )
+                sonho_id_form = opcoes_sonhos_f[escolha_sonho_f]
+
         with st.form(key='form_lancamento'):
             col1, col2 = st.columns(2)
             with col1:
-                tipo = st.selectbox("Tipo", ["Despesa", "Receita", "Outras Receitas", "Resgate de Investimento"])
-                descricao = st.text_input("Descrição (Ex: Conta de Luz)")
+                descricao = st.text_input("Descrição (Ex: Conta de Luz, Supermercado, Uber)")
                 valor = st.number_input("Valor (R$)", min_value=0.0, format="%.2f")
-                banco = st.text_input("Conta/Banco (Ex: Itaú, Santander)")
+                banco = st.text_input("Conta/Banco (Ex: Itaú, Santander)", value="Itaú")
             with col2:
                 data_vencimento = st.date_input("Data (Compra/Ocorrência)")
                 data_pagamento = st.date_input("Data de Pagamento (Orçamento)", value=data_vencimento)
-                categoria = st.selectbox("Categoria (50/30/20)", ["Necessidade (50%)", "Desejo (30%)", "Investimento (20%)", "Renda (Não se aplica)"])
-                status = st.selectbox("Status", ["Pendente", "Pago"])
+                categoria = st.selectbox("Regra 50/30/20 (Vinculada automaticamente ao ícone)", opcoes_503020, index=idx_503020)
+                status = st.selectbox("Status", ["Pago", "Pendente"], index=0)
                 
             st.markdown("---")
             tributavel = False
@@ -175,14 +205,15 @@ def render_lancamentos(user_id, nome_usuario="", manu_face_b64=""):
             if tipo in ["Receita", "Outras Receitas", "Resgate de Investimento", "Informativo"]:
                 tributavel = st.checkbox("Rendimento Tributável? (Usado para somar receita na aba de IRPF)")
             elif tipo == "Despesa":
-                dedutivel = st.checkbox("Despesa Dedutível? (Saúde, Educação, INSS pago - Usado na aba de IRPF)")
+                ded_padrao = subcategoria in ["💊 Saúde & Farmácia", "🎓 Educação & Cursos"]
+                dedutivel = st.checkbox("Despesa Dedutível? (Saúde, Educação, INSS pago - Usado na aba de IRPF)", value=ded_padrao)
                 
             repetir = st.checkbox("Repetir este lançamento para os próximos meses (Em Lote)")
             meses = 1
             if repetir:
                 meses = st.slider("Total de meses (incluindo o primeiro):", min_value=2, max_value=24, value=12)
                 
-            submit = st.form_submit_button(label="Salvar Lançamento(s)")
+            submit = st.form_submit_button(label="💾 Salvar Lançamento(s)", use_container_width=True)
             
             if submit:
                 df_atual = listar_lancamentos()
@@ -219,12 +250,22 @@ def render_lancamentos(user_id, nome_usuario="", manu_face_b64=""):
                         
                         val_tributavel = 1 if tributavel else 0
                         val_dedutivel = 1 if dedutivel else 0
-                        inserir_lancamento(tipo, desc_nome, valor, data_str, categoria, banco, status_atual, protocolo, data_pgto_str, tributavel=val_tributavel, dedutivel=val_dedutivel)
+                        inserir_lancamento(tipo, desc_nome, valor, data_str, categoria, banco, status_atual, protocolo, data_pgto_str, tributavel=val_tributavel, dedutivel=val_dedutivel, subcategoria=subcategoria)
                         
+                    if sonho_id_form is not None and valor > 0:
+                        info_ap_f = database.aportar_sonho(user_id, sonho_id_form, valor, registrar_lancamento=False, banco=banco, data_aporte=data_vencimento.strftime("%Y-%m-%d"))
+                        if info_ap_f:
+                            st.session_state["alerta_aporte_sonho"] = info_ap_f
+                            st.info(
+                                f"🎯 **Sinalizador de Caixinha ({info_ap_f['titulo']}):** Com este aporte de **R$ {valor:,.2f}**, "
+                                f"sua caixinha atingiu **R$ {info_ap_f['novo_valor']:,.2f}** ({info_ap_f['pct_atingido']:.1f}%)! "
+                                f"⏳ **Falta apenas {info_ap_f['pct_falta']:.1f}% (R$ {info_ap_f['valor_falta']:,.2f}) para realizar este sonho!**"
+                            )
+
                     if repetir:
-                        st.success(f"{meses} lançamentos foram gerados com sucesso para o ano todo!")
+                        st.success(f"{meses} lançamentos ({subcategoria}) foram gerados com sucesso para o ano todo!")
                     else:
-                        st.success("Lançamento salvo com sucesso no banco de dados!")
+                        st.success(f"Lançamento salvo com sucesso em {subcategoria}!")
 
     with tab_csv:
         st.write("#### 📂 Importação em Lote de Despesas (CSV / Extrato Bancário)")
@@ -386,11 +427,13 @@ def render_lancamentos(user_id, nome_usuario="", manu_face_b64=""):
                         duplicado = True
                         
                 cat_sug, ded_sug = categorizar_despesa(desc_raw)
+                sub_sug = inferir_subcategoria_icone(desc_raw, "Despesa", cat_sug)
                 
                 linhas_despesas.append({
                     "Data": dt_iso,
                     "Descrição": desc_raw,
                     "Valor (R$)": val_num,
+                    "Subcategoria": sub_sug,
                     "Categoria": cat_sug,
                     "Dedutível IRPF": bool(ded_sug),
                     "Banco": csv_banco,
@@ -424,7 +467,8 @@ def render_lancamentos(user_id, nome_usuario="", manu_face_b64=""):
                         "Data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
                         "Descrição": st.column_config.TextColumn("Descrição", width="large"),
                         "Valor (R$)": st.column_config.NumberColumn("Valor (R$)", format="%.2f", help="Valor em Reais (R$)"),
-                        "Categoria": st.column_config.SelectboxColumn("Categoria (50/30/20)", options=["Necessidade (50%)", "Desejo (30%)", "Investimento (20%)", "Renda (Não se aplica)"]),
+                        "Subcategoria": st.column_config.SelectboxColumn("Categoria (Ícone) 🏷️", options=SUBCATEGORIAS_DESPESAS),
+                        "Categoria": st.column_config.SelectboxColumn("Regra 50/30/20", options=["Necessidade (50%)", "Desejo (30%)", "Investimento (20%)", "Renda (Não se aplica)"]),
                         "Dedutível IRPF": st.column_config.CheckboxColumn("Dedutível IRPF?"),
                         "Banco": st.column_config.TextColumn("Banco"),
                         "Duplicado": st.column_config.CheckboxColumn("Já Existe?", disabled=True)
@@ -454,7 +498,8 @@ def render_lancamentos(user_id, nome_usuario="", manu_face_b64=""):
                                 protocolo=protocolo_desp,
                                 data_pagamento=dt_s,
                                 tributavel=0,
-                                dedutivel=1 if row_item['Dedutível IRPF'] else 0
+                                dedutivel=1 if row_item['Dedutível IRPF'] else 0,
+                                subcategoria=row_item.get('Subcategoria', '📋 Outros')
                             )
                             salvos_cont += 1
                             

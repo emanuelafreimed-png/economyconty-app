@@ -14,6 +14,13 @@ def render_painel_principal(user_id, nome_usuario="", manu_face_b64=""):
         return database.obter_saldo_inicial(user_id, banco=banco, ano=ano)
     def salvar_saldo_inicial(banco, ano, valor):
         return database.salvar_saldo_inicial(user_id, banco=banco, ano=ano, valor=valor)
+    def atualizar_status_lote(lista_ids, novo_status="Pago"):
+        return database.atualizar_status_lote(user_id, lista_ids, novo_status=novo_status)
+    def listar_metas_categorias():
+        return database.listar_metas_categorias(user_id)
+    def salvar_meta_categoria(subcategoria, limite_mensal):
+        return database.salvar_meta_categoria(user_id, subcategoria, limite_mensal)
+    SUBCATEGORIAS_DESPESAS = database.SUBCATEGORIAS_DESPESAS
 
     st.markdown(f"""
     <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.2rem; padding-bottom: 0.8rem; border-bottom: 1px solid rgba(194, 163, 92, 0.25);">
@@ -130,7 +137,8 @@ def render_painel_principal(user_id, nome_usuario="", manu_face_b64=""):
         with col_s1:
             st.metric("Despesas Totais", f"R$ {despesas:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             with st.expander("🔍 Detalhes (Despesas)"):
-                st.dataframe(df_mes[df_mes['tipo'] == 'Despesa'][['data_vencimento', 'descricao', 'valor', 'banco', 'categoria_503020']], hide_index=True, use_container_width=True)
+                cols_det_desp = [c for c in ['data_vencimento', 'descricao', 'valor', 'banco', 'subcategoria', 'categoria_503020'] if c in df_mes.columns]
+                st.dataframe(df_mes[df_mes['tipo'] == 'Despesa'][cols_det_desp], hide_index=True, use_container_width=True)
         with col_s2:
             st.metric(rotulo_resultado, f"R$ {saldo:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), delta=f"R$ {saldo:,.2f}", delta_color="normal" if saldo >= 0 else "inverse")
             with st.expander("🔍 Balanço"):
@@ -150,6 +158,99 @@ def render_painel_principal(user_id, nome_usuario="", manu_face_b64=""):
                 st.write(f"**Saídas:** -R$ {despesas:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                 st.write(f"**Resultado:** R$ {saldo:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
                 st.write(f"**Disponibilidade:** R$ {disponibilidade_final:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+
+        # --- BARRA DE INTELIGÊNCIA EXECUTIVA (APPS NOTA 5 GOOGLE PLAY) ---
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("<p style='font-size:0.78rem; font-weight:700; color:#FFDE7A; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;'>🧠 Inteligência Executiva & Radar de Bolso</p>", unsafe_allow_html=True)
+        
+        taxa_poupanca_real = ((saldo / total_entradas) * 100.0) if total_entradas > 0 else 0.0
+        
+        df_desp_periodo = df_mes[df_mes['tipo'] == 'Despesa'].copy()
+        if not df_desp_periodo.empty and 'subcategoria' in df_desp_periodo.columns:
+            ranking_sub = df_desp_periodo.groupby('subcategoria')['valor'].sum().sort_values(ascending=False)
+            top_sub_nome = ranking_sub.index[0]
+            top_sub_val = ranking_sub.iloc[0]
+            top_sub_pct = (top_sub_val / despesas * 100.0) if despesas > 0 else 0.0
+        else:
+            top_sub_nome = "Sem gastos"
+            top_sub_val = 0.0
+            top_sub_pct = 0.0
+            
+        hoje_dt = pd.Timestamp.now().normalize()
+        if mes_selecionado == "Acumulado do Ano":
+            dias_ref = max(1, (hoje_dt - pd.Timestamp(ano_selecionado, 1, 1)).days + 1) if ano_selecionado == ano_atual else 365
+        else:
+            if ano_selecionado == ano_atual and int(mes_selecionado) == mes_atual:
+                dias_ref = max(1, hoje_dt.day)
+            else:
+                dias_ref = pd.Period(f"{ano_selecionado}-{int(mes_selecionado):02d}", freq='M').days_in_month
+        gasto_medio_dia = despesas / max(1, dias_ref)
+        
+        df_pendentes_global = df[df['status'] == 'Pendente'].copy()
+        if not df_pendentes_global.empty:
+            df_pendentes_global['dt_ref'] = df_pendentes_global['data_pagamento'].fillna(df_pendentes_global['data_vencimento'])
+            df_venc_prox = df_pendentes_global[df_pendentes_global['dt_ref'] <= (hoje_dt + pd.Timedelta(days=7))].sort_values('dt_ref')
+        else:
+            df_venc_prox = pd.DataFrame()
+            
+        ki1, ki2, ki3, ki4 = st.columns(4)
+        with ki1:
+            cor_poup = "#10B981" if taxa_poupanca_real >= 20 else ("#F59E0B" if taxa_poupanca_real > 0 else "#EF4444")
+            st.markdown(f"""
+            <div class="kpi-card" style="padding:14px 16px;">
+                <div class="kpi-label">💎 Taxa de Poupança Livre</div>
+                <div class="kpi-val" style="color:{cor_poup} !important; font-size:1.45rem;">{taxa_poupanca_real:.1f}%</div>
+                <div style="font-size:0.76rem; color:#B5D5DC; margin-top:4px;">Meta recomendada: mín. 20%</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with ki2:
+            val_top_fmt = f"R$ {top_sub_val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            st.markdown(f"""
+            <div class="kpi-card" style="padding:14px 16px;">
+                <div class="kpi-label">🔥 Maior Foco de Gastos</div>
+                <div class="kpi-val" style="font-size:1.08rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{top_sub_nome}</div>
+                <div style="font-size:0.76rem; color:#FFDE7A; margin-top:4px;">{val_top_fmt} ({top_sub_pct:.1f}% das saídas)</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with ki3:
+            val_dia_fmt = f"R$ {gasto_medio_dia:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            st.markdown(f"""
+            <div class="kpi-card" style="padding:14px 16px;">
+                <div class="kpi-label">📆 Ritmo Diário de Gastos</div>
+                <div class="kpi-val" style="font-size:1.45rem;">{val_dia_fmt}<span style="font-size:0.8rem; font-weight:500; color:#B5D5DC;">/dia</span></div>
+                <div style="font-size:0.76rem; color:#B5D5DC; margin-top:4px;">Baseado em {dias_ref} dias do período</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with ki4:
+            qtd_alerta = len(df_venc_prox)
+            soma_alerta = df_venc_prox['valor'].sum() if qtd_alerta > 0 else 0.0
+            soma_alerta_fmt = f"R$ {soma_alerta:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            cor_alerta = "#EF4444" if qtd_alerta > 0 else "#10B981"
+            texto_alerta = f"{qtd_alerta} conta(s) • {soma_alerta_fmt}" if qtd_alerta > 0 else "Tudo em dia! 🎉"
+            st.markdown(f"""
+            <div class="kpi-card" style="padding:14px 16px;">
+                <div class="kpi-label">🔔 Radar de Vencimentos (7d)</div>
+                <div class="kpi-val" style="color:{cor_alerta} !important; font-size:1.18rem;">{texto_alerta}</div>
+                <div style="font-size:0.76rem; color:#B5D5DC; margin-top:4px;">Contas pendentes ou vencidas</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        if not df_venc_prox.empty:
+            with st.expander(f"🔔 Contas Pendentes Próximas ou Vencidas ({len(df_venc_prox)}) — Dar Baixa em 1 Clique", expanded=False):
+                for _, r_pend in df_venc_prox.head(8).iterrows():
+                    cp1, cp2, cp3, cp4 = st.columns([2.5, 1.2, 1.2, 1.1], vertical_alignment="center")
+                    dt_v_fmt = pd.to_datetime(r_pend['dt_ref']).strftime('%d/%m/%Y')
+                    atrasado = pd.to_datetime(r_pend['dt_ref']) < hoje_dt
+                    badge_status = "🔴 Vencida" if atrasado else "🟡 Vence em breve"
+                    sub_icone = r_pend.get('subcategoria', '📋 Outros')
+                    cp1.markdown(f"**{r_pend['descricao']}** <span style='font-size:0.78rem; color:#B5D5DC;'>({sub_icone})</span>", unsafe_allow_html=True)
+                    cp2.markdown(f"`{dt_v_fmt}` • {badge_status}")
+                    val_p_fmt = f"R$ {float(r_pend['valor']):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                    cp3.markdown(f"**{val_p_fmt}**")
+                    if cp4.button("✅ Dar Baixa (Pago)", key=f"baixa_dash_{r_pend['id']}", use_container_width=True):
+                        atualizar_status_lote([int(r_pend['id'])], "Pago")
+                        st.toast(f"✅ Conta '{r_pend['descricao']}' marcada como Paga!")
+                        st.rerun()
         
         st.markdown("---")
         # --- REGRA 50/30/20 ---
@@ -232,31 +333,59 @@ def render_painel_principal(user_id, nome_usuario="", manu_face_b64=""):
         with c_graf1:
             st.write("#### 💸 Despesas por Categoria")
             if despesas > 0:
-                cores_cat_pizza = {
-                    'Necessidade (50%)': '#4E89AE',   # Azul Ardósia Suave
-                    'Desejo (30%)': '#D97736',        # Âmbar / Terracota Suave
-                    'Investimento (20%)': '#42986E',   # Verde Sálvia / Esmeralda Suave
-                    'Renda (Não se aplica)': '#8E9AA8' # Cinza Neutro Suave
-                }
-                fig_cat = px.pie(
-                    df_mes[df_mes['tipo'] == 'Despesa'], 
-                    values='valor', 
-                    names='categoria_503020', 
-                    hole=0.45, 
-                    color='categoria_503020',
-                    color_discrete_map=cores_cat_pizza
-                )
-                fig_cat.update_traces(
-                    opacity=0.90,
-                    marker=dict(line=dict(color='#080E18', width=2))
-                )
-                fig_cat.update_layout(
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    font=dict(family="Plus Jakarta Sans", color="#F9FAFB"),
-                    legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5)
-                )
-                st.plotly_chart(fig_cat, use_container_width=True)
+                tab_g_icone, tab_g_503020 = st.tabs(["🏷️ Por Categoria (Ícones)", "🎯 Regra 50/30/20"])
+                with tab_g_icone:
+                    df_desp_sub = df_mes[df_mes['tipo'] == 'Despesa'].groupby('subcategoria', as_index=False)['valor'].sum().sort_values('valor', ascending=True)
+                    fig_sub = px.bar(
+                        df_desp_sub,
+                        x='valor',
+                        y='subcategoria',
+                        orientation='h',
+                        text_auto='.2s',
+                        color='valor',
+                        color_continuous_scale=['#4E89AE', '#C2A35C', '#D97736']
+                    )
+                    fig_sub.update_traces(
+                        texttemplate='R$ %{x:,.2f}',
+                        textposition='outside',
+                        marker=dict(line=dict(color='rgba(255,255,255,0.12)', width=1))
+                    )
+                    fig_sub.update_layout(
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(family="Plus Jakarta Sans", color="#F9FAFB"),
+                        xaxis=dict(title="Total Gasto (R$)", gridcolor="rgba(212, 175, 55, 0.1)"),
+                        yaxis=dict(title="", showgrid=False),
+                        coloraxis_showscale=False,
+                        margin=dict(l=10, r=40, t=10, b=10)
+                    )
+                    st.plotly_chart(fig_sub, use_container_width=True)
+                with tab_g_503020:
+                    cores_cat_pizza = {
+                        'Necessidade (50%)': '#4E89AE',   # Azul Ardósia Suave
+                        'Desejo (30%)': '#D97736',        # Âmbar / Terracota Suave
+                        'Investimento (20%)': '#42986E',   # Verde Sálvia / Esmeralda Suave
+                        'Renda (Não se aplica)': '#8E9AA8' # Cinza Neutro Suave
+                    }
+                    fig_cat = px.pie(
+                        df_mes[df_mes['tipo'] == 'Despesa'], 
+                        values='valor', 
+                        names='categoria_503020', 
+                        hole=0.45, 
+                        color='categoria_503020',
+                        color_discrete_map=cores_cat_pizza
+                    )
+                    fig_cat.update_traces(
+                        opacity=0.90,
+                        marker=dict(line=dict(color='#080E18', width=2))
+                    )
+                    fig_cat.update_layout(
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        font=dict(family="Plus Jakarta Sans", color="#F9FAFB"),
+                        legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5)
+                    )
+                    st.plotly_chart(fig_cat, use_container_width=True)
             else:
                 st.write("Sem despesas para exibir.")
                 
@@ -299,6 +428,54 @@ def render_painel_principal(user_id, nome_usuario="", manu_face_b64=""):
                 st.plotly_chart(fig_banco, use_container_width=True)
             else:
                 st.write("Sem despesas para exibir.")
+
+        # --- TETO DE GASTOS POR CATEGORIA (ORÇAMENTO INTELIGENTE - APPS NOTA 5) ---
+        st.markdown("---")
+        col_teto_t, col_teto_btn = st.columns([2.8, 1.2], vertical_alignment="center")
+        with col_teto_t:
+            st.write("### 🎯 Teto de Gastos por Categoria (Controle de Limites)")
+            st.caption("Defina um limite mensal para categorias específicas (ex: Alimentação, Lazer, Compras) e acompanhe o consumo em tempo real.")
+        
+        metas_salvas = listar_metas_categorias()
+        with col_teto_btn:
+            with st.popover("⚙️ Definir Limites por Ícone", use_container_width=True):
+                st.markdown("**Configurar Teto Mensal (R$)**")
+                st.caption("Deixe R$ 0,00 para remover a meta da categoria.")
+                cat_meta_sel = st.selectbox("Escolha a Categoria:", SUBCATEGORIAS_DESPESAS, key="sel_cat_meta_pop")
+                val_atual_meta = float(metas_salvas.get(cat_meta_sel, 0.0))
+                novo_val_meta = st.number_input("Limite Mensal (R$):", min_value=0.0, value=val_atual_meta, step=100.0, format="%.2f", key="num_val_meta_pop")
+                if st.button("💾 Salvar Limite", type="primary", use_container_width=True, key="btn_save_meta_pop"):
+                    salvar_meta_categoria(cat_meta_sel, novo_val_meta)
+                    st.toast(f"✅ Meta de {cat_meta_sel} atualizada!")
+                    st.rerun()
+
+        if metas_salvas:
+            gastos_por_sub = df_mes[df_mes['tipo'] == 'Despesa'].groupby('subcategoria')['valor'].sum().to_dict() if despesas > 0 else {}
+            fator_periodo = 12.0 if mes_selecionado == "Acumulado do Ano" else 1.0
+            cols_metas = st.columns(min(3, len(metas_salvas)))
+            for idx_m, (sub_m, lim_m) in enumerate(metas_salvas.items()):
+                lim_ajustado = lim_m * fator_periodo
+                gasto_atual_m = float(gastos_por_sub.get(sub_m, 0.0))
+                pct_m = (gasto_atual_m / lim_ajustado * 100.0) if lim_ajustado > 0 else 0.0
+                cor_m = "#EF4444" if pct_m > 100 else ("#F59E0B" if pct_m >= 80 else "#10B981")
+                status_m = "🚨 Limite Excedido" if pct_m > 100 else ("⚠️ Atenção (>80%)" if pct_m >= 80 else "✅ Dentro da Meta")
+                gasto_m_fmt = f"R$ {gasto_atual_m:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                lim_m_fmt = f"R$ {lim_ajustado:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                with cols_metas[idx_m % len(cols_metas)]:
+                    st.markdown(f"""
+                    <div class="kpi-card" style="padding:14px 16px; margin-bottom:10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-weight:700; color:#FFFFFF; font-size:0.92rem;">{sub_m}</span>
+                            <span style="font-size:0.72rem; color:{cor_m}; font-weight:700;">{status_m}</span>
+                        </div>
+                        <div style="font-size:1.35rem; font-weight:800; color:{cor_m}; margin:6px 0 2px 0;">
+                            {pct_m:.1f}% <span style="font-size:0.82rem; color:#B5D5DC; font-weight:500;">({gasto_m_fmt} / {lim_m_fmt})</span>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    st.progress(min(max(pct_m / 100.0, 0.0), 1.0))
+        else:
+            st.info("💡 Você ainda não definiu limites mensais por ícone. Clique em **⚙️ Definir Limites por Ícone** acima para criar seu primeiro alerta de orçamento!")
                 
         st.markdown("---")
         # --- VALIDAÇÃO DE IRPF ---

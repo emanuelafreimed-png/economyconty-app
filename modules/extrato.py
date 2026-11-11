@@ -14,10 +14,14 @@ def render_extrato(user_id, nome_usuario="", manu_face_b64=""):
         return database.excluir_lancamento_protocolo(user_id, protocolo)
     def excluir_lancamentos_multiplos(lista_ids):
         return database.excluir_lancamentos_multiplos(user_id, lista_ids)
-    def atualizar_categoria_lancamento(id_lancamento, nova_categoria):
-        return database.atualizar_categoria_lancamento(user_id, id_lancamento, nova_categoria)
+    def atualizar_categoria_lancamento(id_lancamento, nova_categoria, nova_subcategoria=None):
+        return database.atualizar_categoria_lancamento(user_id, id_lancamento, nova_categoria, nova_subcategoria=nova_subcategoria)
     def atualizar_categorias_lote(lista_alteracoes):
         return database.atualizar_categorias_lote(user_id, lista_alteracoes)
+    def atualizar_status_lote(lista_ids, novo_status="Pago"):
+        return database.atualizar_status_lote(user_id, lista_ids, novo_status=novo_status)
+    TODAS_SUBCATEGORIAS = database.TODAS_SUBCATEGORIAS
+    MAPA_SUBCATEGORIA_503020 = database.MAPA_SUBCATEGORIA_503020
 
     st.markdown("""
     <div style="margin-bottom: 1.5rem; padding-bottom: 0.8rem; border-bottom: 1px solid rgba(212, 175, 55, 0.2);">
@@ -125,12 +129,15 @@ def render_extrato(user_id, nome_usuario="", manu_face_b64=""):
                 else:
                     dt_inicio, dt_fim = primeiro_dia_mes, hoje
                     
-        f_sub1, f_sub2, f_sub3 = st.columns([1, 1, 1.8], vertical_alignment="bottom")
+        f_sub1, f_sub2, f_sub3, f_sub4 = st.columns([0.9, 1.0, 1.3, 1.4], vertical_alignment="bottom")
         with f_sub1:
             filtro_status = st.selectbox("Status:", ["Todos", "Pago", "Pendente"], index=0, key="filtro_extrato_status")
         with f_sub2:
             filtro_tipo = st.selectbox("Tipo:", ["Todos", "Despesa", "Receita", "Outras Receitas", "Resgate de Investimento"], index=0, key="filtro_extrato_tipo")
         with f_sub3:
+            opcoes_filtro_sub = ["Todas as Categorias"] + sorted(list(df['subcategoria'].dropna().unique())) if 'subcategoria' in df.columns else ["Todas as Categorias"]
+            filtro_subcat = st.selectbox("🏷️ Categoria (Ícone):", opcoes_filtro_sub, index=0, key="filtro_extrato_subcat")
+        with f_sub4:
             filtro_busca = st.text_input("🔍 Busca por texto:", placeholder="Descrição, categoria ou banco...", key="filtro_extrato_busca")
             
         st.markdown("</div>", unsafe_allow_html=True)
@@ -147,12 +154,16 @@ def render_extrato(user_id, nome_usuario="", manu_face_b64=""):
             
         if filtro_tipo != "Todos":
             df_filtrado = df_filtrado[df_filtrado['tipo'] == filtro_tipo]
+
+        if filtro_subcat != "Todas as Categorias" and 'subcategoria' in df_filtrado.columns:
+            df_filtrado = df_filtrado[df_filtrado['subcategoria'] == filtro_subcat]
             
         if filtro_busca:
             termo = filtro_busca.lower()
             mask_busca = (
                 df_filtrado['descricao'].astype(str).str.lower().str.contains(termo, na=False) |
                 df_filtrado['categoria_503020'].astype(str).str.lower().str.contains(termo, na=False) |
+                df_filtrado['subcategoria'].astype(str).str.lower().str.contains(termo, na=False) |
                 df_filtrado['banco'].astype(str).str.lower().str.contains(termo, na=False)
             )
             df_filtrado = df_filtrado[mask_busca]
@@ -227,6 +238,7 @@ def render_extrato(user_id, nome_usuario="", manu_face_b64=""):
                 'Descrição': df_display['descricao'],
                 'Valor': df_display['valor_formatado'],
                 'Data da Compra': df_display['data_vencimento_fmt'],
+                'Subcategoria': df_display['subcategoria'],
                 'Categoria': df_display['categoria_503020'],
                 'Conta/Banco': df_display['banco'],
                 'Status': df_display['status'],
@@ -246,6 +258,7 @@ def render_extrato(user_id, nome_usuario="", manu_face_b64=""):
                     'Descrição': df_display['descricao'].values,
                     'Valor': df_display['valor_formatado'].values,
                     'Data da Compra': df_display['data_vencimento_fmt'].values,
+                    'Subcategoria': df_display['subcategoria'].values,
                     'Categoria': df_display['categoria_503020'].values,
                     'Conta/Banco': df_display['banco'].values,
                     'Status': df_display['status'].values,
@@ -267,15 +280,28 @@ def render_extrato(user_id, nome_usuario="", manu_face_b64=""):
                     "Descrição": st.column_config.TextColumn("Descrição", disabled=True, width="medium"),
                     "Valor": st.column_config.TextColumn("Valor", disabled=True, width="small"),
                     "Data da Compra": st.column_config.TextColumn("Data da Compra", disabled=True, width="small"),
+                    "Subcategoria": st.column_config.SelectboxColumn(
+                        "Categoria (Ícone) 🏷️",
+                        help="Clique duas vezes para escolher a categoria com ícone",
+                        options=TODAS_SUBCATEGORIAS,
+                        required=True,
+                        width="medium"
+                    ),
                     "Categoria": st.column_config.SelectboxColumn(
-                        "Categoria ✏️",
-                        help="Clique duas vezes ou selecione a nova categoria",
+                        "Regra 50/30/20 ✏️",
+                        help="Clique duas vezes ou selecione a nova categoria 50/30/20",
                         options=opcoes_categorias_503020,
                         required=True,
                         width="medium"
                     ),
                     "Conta/Banco": st.column_config.TextColumn("Conta/Banco", disabled=True, width="small"),
-                    "Status": st.column_config.TextColumn("Status", disabled=True, width="small"),
+                    "Status": st.column_config.SelectboxColumn(
+                        "Status ✅",
+                        help="Altere entre Pago e Pendente com 2 cliques",
+                        options=["Pago", "Pendente", "A Pagar"],
+                        required=True,
+                        width="small"
+                    ),
                     "Data do Pgto.": st.column_config.TextColumn("Data do Pgto.", disabled=True, width="small"),
                     "tributavel": st.column_config.NumberColumn("tributavel", disabled=True, width="small"),
                     "dedutivel": st.column_config.NumberColumn("dedutivel", disabled=True, width="small"),
@@ -284,53 +310,73 @@ def render_extrato(user_id, nome_usuario="", manu_face_b64=""):
                 df_editado = st.data_editor(
                     df_editor,
                     column_config=col_config,
-                    disabled=[c for c in df_editor.columns if c != "Categoria"],
+                    disabled=[c for c in df_editor.columns if c not in ["Categoria", "Subcategoria", "Status"]],
                     hide_index=True,
                     width='stretch',
                     key="editor_extrato_categorias"
                 )
 
                 # Detecta alterações
-                diff_mask = df_editado['Categoria'] != df_editor['Categoria']
+                diff_mask = (df_editado['Categoria'] != df_editor['Categoria']) | (df_editado['Subcategoria'] != df_editor['Subcategoria']) | (df_editado['Status'] != df_editor['Status'])
                 alteracoes_pendentes = df_editado[diff_mask]
                 qtd_alt = len(alteracoes_pendentes)
 
                 btn_col1, btn_col2 = st.columns([1.5, 3], vertical_alignment="center")
                 with btn_col1:
                     if qtd_alt > 0:
-                        if st.button(f"💾 Salvar Reclassificação ({qtd_alt} alteraç{'ão' if qtd_alt == 1 else 'ões'})", type="primary", use_container_width=True):
-                            lista_upd = [(r['Categoria'], int(r['id'])) for _, r in alteracoes_pendentes.iterrows()]
+                        if st.button(f"💾 Salvar Alterações ({qtd_alt} item{'s' if qtd_alt > 1 else ''})", type="primary", use_container_width=True):
+                            lista_upd = []
+                            for idx_r, r in alteracoes_pendentes.iterrows():
+                                cat_orig = df_editor.loc[idx_r, 'Categoria']
+                                sub_orig = df_editor.loc[idx_r, 'Subcategoria']
+                                status_orig = df_editor.loc[idx_r, 'Status']
+                                nova_sub = r['Subcategoria']
+                                nova_cat = r['Categoria']
+                                if nova_sub != sub_orig and nova_cat == cat_orig:
+                                    nova_cat = MAPA_SUBCATEGORIA_503020.get(nova_sub, nova_cat)
+                                lista_upd.append((nova_cat, nova_sub, int(r['id'])))
+                                if r['Status'] != status_orig:
+                                    atualizar_status_lote([int(r['id'])], r['Status'])
                             atualizar_categorias_lote(lista_upd)
-                            st.success(f"🎉 {len(lista_upd)} lançamento(s) reclassificado(s) com sucesso!")
+                            st.success(f"🎉 {len(lista_upd)} lançamento(s) atualizado(s) com sucesso!")
                             st.rerun()
                     else:
-                        st.button("💾 Salvar Reclassificação (Sem alterações)", disabled=True, use_container_width=True)
+                        st.button("💾 Salvar Alterações (Sem mudanças)", disabled=True, use_container_width=True)
                 
                 with btn_col2:
                     if qtd_alt > 0:
-                        st.info(f"⚠️ Há **{qtd_alt}** categoria(s) alterada(s) na tabela. Clique no botão ao lado para salvar.")
+                        st.info(f"⚠️ Há **{qtd_alt}** lançamento(s) alterado(s) na tabela. Clique no botão ao lado para salvar.")
                     else:
-                        st.caption("Altere a categoria diretamente na tabela acima e o botão de salvar será habilitado.")
+                        st.caption("Altere **Categoria (Ícone)**, **Regra 50/30/20** ou **Status** diretamente na tabela acima e clique em salvar.")
 
             # Formulário rápido de reclassificação individual
             with st.expander("⚡ Reclassificar Lançamento por Formulário Rápido"):
-                c_rec1, c_rec2, c_rec3 = st.columns([2.5, 1.5, 1], vertical_alignment="bottom")
+                c_rec1, c_rec2, c_rec3, c_rec4 = st.columns([2.2, 1.4, 1.3, 1.0], vertical_alignment="bottom")
                 with c_rec1:
                     opcoes_itens_rec = {
-                        f"ID {r['id']} | {r['descricao']} (R$ {float(r['valor']):,.2f}) — Atual: {r['categoria_503020']}": r['id']
+                        f"ID {r['id']} | {r['descricao']} (R$ {float(r['valor']):,.2f}) — {r.get('subcategoria', '📋 Outros')}": r['id']
                         for _, r in df_filtrado.iterrows()
                     }
-                    item_rec_sel = st.selectbox("Selecione o Lançamento para Reclassificar:", list(opcoes_itens_rec.keys()), key="sel_item_rec_form")
+                    item_rec_sel = st.selectbox("Selecione o Lançamento:", list(opcoes_itens_rec.keys()), key="sel_item_rec_form")
                 with c_rec2:
-                    nova_cat_form = st.selectbox(
-                        "Nova Categoria:",
-                        ["Necessidade (50%)", "Desejo (30%)", "Investimento (20%)", "Renda (Não se aplica)"],
-                        key="nova_cat_form_sel"
+                    nova_sub_form = st.selectbox(
+                        "Nova Categoria (Ícone):",
+                        TODAS_SUBCATEGORIAS,
+                        key="nova_sub_form_sel"
                     )
                 with c_rec3:
-                    if st.button("Aplicar Nova Categoria", type="secondary", use_container_width=True, key="btn_aplica_nova_cat_form"):
+                    cat_sug_f = MAPA_SUBCATEGORIA_503020.get(nova_sub_form, "Desejo (30%)")
+                    op_50 = ["Necessidade (50%)", "Desejo (30%)", "Investimento (20%)", "Renda (Não se aplica)"]
+                    nova_cat_form = st.selectbox(
+                        "Regra 50/30/20:",
+                        op_50,
+                        index=op_50.index(cat_sug_f) if cat_sug_f in op_50 else 0,
+                        key="nova_cat_form_sel"
+                    )
+                with c_rec4:
+                    if st.button("Aplicar", type="secondary", use_container_width=True, key="btn_aplica_nova_cat_form"):
                         id_rec_alvo = opcoes_itens_rec[item_rec_sel]
-                        atualizar_categoria_lancamento(id_rec_alvo, nova_cat_form)
+                        atualizar_categoria_lancamento(id_rec_alvo, nova_cat_form, nova_sub_form)
                         st.success("Categoria atualizada com sucesso!")
                         st.rerun()
 
